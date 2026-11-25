@@ -344,13 +344,14 @@
   let pics = store.get("mobius-mini.pics2", null) || PICS_FALLBACK, shown = "", iconSrc = "", iconPic = null;
   async function folder(repo, path, base) {
     try {
-      const r = await fetch("https://api.github.com/repos/" + repo + "/contents/" + path, { headers: { Accept: "application/vnd.github+json" } });
+      const r = await fetch("https://api.github.com/repos/" + repo + "/contents" + (path ? "/" + path : ""), { headers: { Accept: "application/vnd.github+json" } });
       if (!r.ok) return [];
       return (await r.json()).filter(f => f.type === "file" && /\.(jpe?g|png|webp|gif|avif)$/i.test(f.name)).map(f => base + encodeURIComponent(f.name));
     } catch { return []; }
   }
   async function loadPics() {   // pictures dropped in this app's art/ folder, plus the big player's mini/art
-    const list = [...await folder("ovidemetrian/PLAY-IT-COOL", "art", "art/"), ...await folder(REPO, "mini/art", ART + "mini/art/")];
+    const own = "ovidemetrian/PLAY-IT-COOL";   // pictures at the top of this app's folder or in its art/ folder, plus the big player's mini/art
+    const list = [...new Set([...await folder(own, "", ""), ...await folder(own, "art", "art/"), ...await folder(REPO, "mini/art", ART + "mini/art/")])];
     if (list.length) { pics = list; store.set("mobius-mini.pics2", list); if (!(songs[cur] && songs[cur].art)) rotate(); }
   }
   const thumbBox = $(".thumb");
