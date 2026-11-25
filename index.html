@@ -46,10 +46,9 @@
       font-size: 3.2cqw; font-weight: 900; letter-spacing: -.03em; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000a; }
     .bub.l { left: 0; } .bub.r { right: 0; }
     .thumb { position: absolute; z-index: 3; top: 9.5cqw; left: calc(15.5cqw + (100% - 31cqw) * var(--t, 0)); width: 20cqw; height: 20cqw; transform: translate(-50%, -50%); border-radius: 2.4cqw; overflow: hidden;
-      display: grid; place-items: center; border: 2px solid #fff; background: radial-gradient(circle at 50% 40%, #2a1640, #0b0614 75%);
+      display: grid; place-items: center; border: 2px solid #fff; background: var(--prev, none) center / contain no-repeat, radial-gradient(circle at 50% 40%, #2a1640, #0b0614 75%);
       box-shadow: 0 0 4.5cqw -.6cqw var(--glow, #ffcc00), 0 .8cqw 2cqw #0009; }
-    .thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; transition: opacity .45s ease; }   /* the whole picture, never cropped */
-    .thumb img.fade { opacity: 0; }
+    .thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; transition: opacity 1.4s ease; }   /* the whole picture, never cropped; each new one dissolves over the last */
     .thumb .ph { width: 55%; height: 55%; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 1cqw #0008); }
     /* where the cover is right now, in its corner */
     .thumb .at, .float .ft { position: absolute; z-index: 2; right: .8cqw; bottom: .4cqw; font-size: 2.4cqw; font-weight: 800; font-style: normal; letter-spacing: 0;
@@ -141,22 +140,21 @@
     /* SHOW: full screen, the wave huge, the picture floating, the title flying across */
     body.show .stage { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100svh; aspect-ratio: auto; }
     body.show .rail, body.show .nav, body.show .recdot { opacity: 0; pointer-events: none; }
-    .float img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .float img { width: 100%; height: 100%; object-fit: contain; display: block; transition: opacity 1.4s ease; }
     .float .ft { right: 1.4vmin; bottom: .8vmin; font-size: 3.4vmin; }
-    .float { position: fixed; left: 0; top: 0; z-index: 6; width: var(--fs, 30vmin); height: var(--fs, 30vmin); border-radius: 6%; overflow: hidden; background: radial-gradient(circle at 50% 40%, #2a1640, #0b0614 75%); border: 2px solid #ffffffb0;
+    .float { position: fixed; left: 0; top: 0; z-index: 6; width: var(--fs, 30vmin); height: var(--fs, 30vmin); border-radius: 6%; overflow: hidden; background: var(--prev, none) center / contain no-repeat, radial-gradient(circle at 50% 40%, #2a1640, #0b0614 75%); border: 2px solid #ffffffb0;
       box-shadow: 0 0 6vmin -1vmin var(--glow, #ffcc00), 0 2vmin 6vmin #000a; opacity: 0; pointer-events: none; transition: opacity .8s; will-change: transform; z-index: 7; }
     .stitle { position: fixed; left: 0; right: 0; top: 7vh; z-index: 6; overflow: hidden; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .8s; }
     .stitle span { display: inline-block; padding-left: 100%; font: 800 7vmin/1.15 "Montserrat", "Helvetica Neue", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase;
       text-shadow: 0 0 2vmin #000, 0 0 6vmin var(--glow, #ffcc00); animation: tick var(--dur, 18s) linear infinite; }
     body.show .float.has, body.show .stitle { opacity: 1; }
     body.show .float.has { pointer-events: auto; cursor: grab; touch-action: none; }
-    /* the little game: bounce the picture off the MADE BY OVI badge */
-    .pop { position: fixed; z-index: 21; left: 0; top: 0; pointer-events: none; white-space: nowrap; transform: translate(-50%, -100%);
-      font: 900 4.2vmin/1 "Montserrat", "Helvetica Neue", Arial, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #fff;
-      text-shadow: 0 0 1vmin #000, 0 0 3vmin var(--glow, #ffcc00); opacity: 0; }
-    .pop.go { animation: pop 1.3s ease-out forwards; }
-    .pop.miss { color: #ff5a4a; }
-    @keyframes pop { 0% { opacity: 0; transform: translate(-50%, -60%) scale(.6); } 15% { opacity: 1; transform: translate(-50%, -100%) scale(1.15); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -260%) scale(1); } }
+    /* the little game: bounce the picture off the MADE BY OVI badge; music notes and laughs float out, like soft confetti */
+    .spark { position: fixed; z-index: 21; left: 0; top: 0; pointer-events: none; font: 700 var(--fz, 5vmin)/1 "Segoe UI Symbol", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+      color: var(--c, #ffcc00); text-shadow: 0 0 1.2vmin var(--c, #ffcc00), 0 0 .4vmin #000; transform: translate(-50%, -50%); animation: spark var(--d, 1.6s) cubic-bezier(.15, .7, .3, 1) forwards; }
+    @keyframes spark { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(0); }
+      15% { opacity: 1; }
+      100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1) rotate(var(--r)); } }
     .nav button { height: 7.5cqw; padding: 0 4.5cqw; border-radius: 5cqw; font-size: 3.2cqw; background: transparent; border: 2px solid transparent; }
     .nav button[aria-current="true"] { background: #ffffff2e; border-color: #fff; }
 
@@ -246,7 +244,7 @@
 
   <div class="float"><img alt=""><i class="ft">0:00</i></div>
   <div class="stitle" aria-hidden="true"><span></span></div>
-  <div class="pop" aria-live="polite"></div>
+  
   <div class="badge" role="note" aria-label="Made by Ovi">MADE BY OVI</div>
 
   <script type="application/json" id="about">
@@ -257,7 +255,7 @@
     { "h": "What it is", "p": [
       "It opens empty. Add songs from your phone and they stay in the player for next time, on your phone only.",
       "Play is kept minimal: a live wave edge to edge through the middle and, at the bottom, a timeline between two red bubbles (the song's length and the time left) where the song's own cover, or Ovi's Möbius Bar and My Jam pictures changing at random, rides along with the current time in its corner (drag it to jump), the title, artist and album scrolling under the line; below it five frosted-glass buttons: repeat, previous, play (glowing red, yellow and blue), next and full screen. The lights pick their own looks from twelve: Ovi's colours, lava, disco, dark red, neon, candle, ocean, sunset, fire, galaxy, ice and jungle, some with starfields and rings that ride out with the beat.",
-      "Show: tap the full-screen square, or leave it playing untouched for 30 seconds. The wave goes huge, the picture floats and swaps on the beat, the title flies across the top. In show mode the picture is a game: drag MADE BY OVI under it and bounce it back (every catch a little faster, the floor is a miss), or grab the picture and throw it. Tap anywhere else to come back."
+      "Show: tap the full-screen square, or leave it playing untouched for 30 seconds. The wave goes huge, the picture floats and swaps on the beat, the title flies across the top. In show mode the picture is a game: drag MADE BY OVI under it and bounce it back; music notes and laughing faces puff out on every catch (each one a little faster, the floor is a miss), or grab the picture and throw it. Tap anywhere else to come back."
     ] },
     { "h": "Making a video", "p": [
       "On the Video page choose Horizontal (16:9, YouTube) or Vertical (9:16, Shorts). The song plays from the start and the whole song is recorded with the lights, the wave, its cover picture and its title.",
@@ -344,25 +342,34 @@
   const ART = "https://ovidemetrian.github.io/MOBIUS-BAR-PLAY-THE-LAMP/";   // Ovi's pictures live with the big player
   const PICS_FALLBACK = [0, 1, 2, 3, 4].map(i => ART + "neon-" + i + ".webp");
   let pics = store.get("mobius-mini.pics2", null) || PICS_FALLBACK, shown = "", iconSrc = "", iconPic = null;
-  async function loadPics() {
+  async function folder(repo, path, base) {
     try {
-      const r = await fetch("https://api.github.com/repos/" + REPO + "/contents/mini/art", { headers: { Accept: "application/vnd.github+json" } });
-      if (!r.ok) return;
-      const list = (await r.json()).filter(f => f.type === "file" && /\.(jpe?g|png|webp|gif|avif)$/i.test(f.name)).map(f => ART + "mini/art/" + encodeURIComponent(f.name));
-      if (list.length) { pics = list; store.set("mobius-mini.pics2", list); if (!(songs[cur] && songs[cur].art)) rotate(); }
-    } catch {}
+      const r = await fetch("https://api.github.com/repos/" + repo + "/contents/" + path, { headers: { Accept: "application/vnd.github+json" } });
+      if (!r.ok) return [];
+      return (await r.json()).filter(f => f.type === "file" && /\.(jpe?g|png|webp|gif|avif)$/i.test(f.name)).map(f => base + encodeURIComponent(f.name));
+    } catch { return []; }
   }
-  function showIcon(src) {
+  async function loadPics() {   // pictures dropped in this app's art/ folder, plus the big player's mini/art
+    const list = [...await folder("ovidemetrian/PLAY-IT-COOL", "art", "art/"), ...await folder(REPO, "mini/art", ART + "mini/art/")];
+    if (list.length) { pics = list; store.set("mobius-mini.pics2", list); if (!(songs[cur] && songs[cur].art)) rotate(); }
+  }
+  const thumbBox = $(".thumb");
+  function showIcon(src) {   // the new picture dissolves over the last one, in the cover and in the floating show picture
     if (shown === src) return;
+    const prev = thumbImg.hidden ? "" : thumbImg.src;
     shown = src;
-    const pic = new Image(); pic.src = src; iconPic = pic;
-    thumbImg.classList.add("fade");
-    setTimeout(() => {
+    const pic = new Image(); iconPic = pic;
+    pic.onload = () => {
       if (shown !== src) return;
-      thumbImg.onload = () => { thumbImg.classList.remove("fade"); thumbPh.style.display = "none"; };
-      thumbImg.onerror = () => { thumbImg.classList.remove("fade"); thumbImg.hidden = true; thumbPh.style.display = ""; floatBox.classList.remove("has"); };
-      thumbImg.hidden = false; thumbImg.src = src; floatImg.src = src; floatBox.classList.add("has");
-    }, thumbImg.hidden ? 0 : 300);
+      [[thumbImg, thumbBox], [floatImg, floatBox]].forEach(([img, box]) => {
+        box.style.setProperty("--prev", prev ? 'url("' + prev + '")' : "none");
+        img.style.transition = "none"; img.style.opacity = 0; img.src = src; img.hidden = false;
+        void img.offsetWidth; img.style.transition = ""; img.style.opacity = 1;
+      });
+      thumbPh.style.display = "none"; floatBox.classList.add("has");
+    };
+    pic.onerror = () => { if (shown === src && !prev) { thumbImg.hidden = true; thumbPh.style.display = ""; floatBox.classList.remove("has"); } };
+    pic.src = src;
   }
   function rotate() {
     const s = songs[cur];
@@ -715,16 +722,22 @@
     floatBox.style.transform = "translate3d(" + fl.x.toFixed(1) + "px," + fl.y.toFixed(1) + "px,0) rotate(" + tilt.toFixed(2) + "deg) scale(" + sc.toFixed(3) + ")";
   }
   // the game: MADE BY OVI is the paddle; the picture bounces off it, the floor is a miss
-  const popEl = $(".pop"), JOKES = ["Nice catch!", "Ovi saves!", "Back to the bar!", "Another round!", "Shaken, not dropped", "On the house!", "Bartender reflexes!", "Möbius bounce!", "Still got it!", "Encore!"],
-        OOPS = ["Spilled! 🍸", "Last call missed", "Mop on aisle five", "Butterfingers!", "The floor says thanks"];
+  const NOTES = ["♪", "♫", "♬", "♩", "🎵", "🎶"], LAUGHS = ["😂", "🤣", "😄", "😎", "🥳", "🤩", "😜", "🍸", "✨", "🎉"], OOPS = ["😅", "🙈", "💦", "🫣"];
+  const SPARKC = ["#ffcc00", "#ff3b30", "#2a7bff", "#ffffff", "#b06bff"];
+  const any = a => a[Math.floor(Math.random() * a.length)];
+  function burst(x, y, n, sets, up) {   // a soft puff of notes and faces, drifting out and fading
+    const m = Math.min(innerWidth, innerHeight);
+    for (let i = 0; i < n; i++) {
+      const el = document.createElement("i"), a = (up ? -Math.PI / 2 : Math.PI / 2) + (Math.random() - .5) * 2.4, dist = m * (.12 + Math.random() * .22);
+      el.className = "spark"; el.textContent = any(any(sets));
+      el.style.cssText = "left:" + x.toFixed(0) + "px;top:" + y.toFixed(0) + "px;--dx:" + (Math.cos(a) * dist).toFixed(0) + "px;--dy:" + (Math.sin(a) * dist).toFixed(0) + "px;--r:" +
+        ((Math.random() - .5) * 120).toFixed(0) + "deg;--c:" + any(SPARKC) + ";--fz:" + (3.5 + Math.random() * 3).toFixed(1) + "vmin;--d:" + (1.3 + Math.random() * .8).toFixed(2) + "s";
+      el.addEventListener("animationend", () => el.remove()); document.body.append(el);
+    }
+  }
   let streak = 0, best = 0, lastHit = -9, grab = null;
   const speed = () => Math.hypot(fl.vx, fl.vy), base = () => Math.min(innerWidth, innerHeight) * .18;
   function setSpeed(v) { const s = speed() || 1; fl.vx *= v / s; fl.vy *= v / s; }
-  function pop(text, x, y, bad) {
-    popEl.textContent = text; popEl.classList.toggle("miss", !!bad);
-    popEl.style.left = Math.min(innerWidth - 80, Math.max(80, x)) + "px"; popEl.style.top = Math.max(40, y) + "px";
-    popEl.classList.remove("go"); void popEl.offsetWidth; popEl.classList.add("go");
-  }
   function catchIt() {
     if (clock - lastHit < .25) return;
     const b = badge.getBoundingClientRect(), s = fl.s;
@@ -734,11 +747,11 @@
     else { if (fl.x + s / 2 < (b.left + b.right) / 2) { fl.x = b.left - s; fl.vx = -Math.abs(fl.vx); } else { fl.x = b.right; fl.vx = Math.abs(fl.vx); } }
     lastHit = clock; streak++; best = Math.max(best, streak); pulse = 1;
     setSpeed(Math.min(base() * 3.5, speed() * 1.1));   // every catch a little faster
-    pop(JOKES[Math.floor(Math.random() * JOKES.length)] + "  ×" + streak, (b.left + b.right) / 2, b.top - 8);
+    burst((b.left + b.right) / 2, b.top, 8 + Math.min(streak, 6), [NOTES, NOTES, LAUGHS], true);   // the longer the streak, the bigger the puff
   }
   function miss() {
     if (!streak) return;   // nobody playing: no scolding
-    pop(OOPS[Math.floor(Math.random() * OOPS.length)] + (best > 1 ? "  · best " + best : ""), fl.x + fl.s / 2, fl.y, true);
+    burst(fl.x + fl.s / 2, fl.y + fl.s, 6, [OOPS, NOTES], true);
     streak = 0; setSpeed(base());
   }
   // drag the floating picture; let go and it flies the way you threw it
