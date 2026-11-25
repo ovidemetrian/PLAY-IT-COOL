@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0614">
+  <meta name="description" content="The Möbius Bar mini player: your own songs from your phone, a glowing wave and lights, and a one-tap video for YouTube.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="https://ovidemetrian.github.io/MOBIUS-BAR-PLAY-THE-LAMP/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="https://ovidemetrian.github.io/MOBIUS-BAR-PLAY-THE-LAMP/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Möbius Bar Mini Player</title>
+  <style>
+    :root { color-scheme: dark; --red: #c1121f; --yel: #ffcc00; --blu: #0a4fd6; --ink: #fff; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #06030b; }
+    body { display: grid; place-items: center; overflow: hidden; color: var(--ink);
+      font: 600 16px/1.3 "Montserrat", "Helvetica Neue", Arial, sans-serif; text-transform: uppercase; letter-spacing: .05em;
+      -webkit-tap-highlight-color: transparent; }
+    [hidden] { display: none !important; }
+    button { font: inherit; color: #fff; cursor: pointer; }
+
+    /* fixed square stage: same picture on phone and computer */
+    .stage { position: relative; width: min(100vw, 100vh); width: min(100vw, 100svh); aspect-ratio: 1;
+      overflow: hidden; overflow: clip; container-type: size; background: #0b0614; isolation: isolate; }
+    canvas.layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+    #bg { filter: blur(3cqw) saturate(1.2); transform: scale(1.12); }
+    .shade { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 45%, transparent 40%, #0b0614b8 100%); pointer-events: none; }
+
+    .rail { position: absolute; inset: 0 0 12cqw; display: flex; width: 300%; transition: transform .55s cubic-bezier(.2, .8, .2, 1), opacity .6s; transform: translateX(calc(var(--p, 0) * -100% / 3)); }
+    .page { position: relative; width: calc(100% / 3); height: 100%; display: flex; flex-direction: column; align-items: center; padding: 6cqw 6cqw 2cqw; gap: 3cqw; }
+
+    /* page 1: minimal top (cover + scrolling info), the wave through the centre (canvas), controls at the bottom */
+    .p1 { justify-content: flex-end; padding: 4cqw 4cqw 2.5cqw; }
+    .bottom { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 1.6cqw; margin-top: auto; }
+    /* the timeline: a red bubble at each end with the times, the cover rides between them, the info scrolls under the line */
+    .track { position: relative; width: 100%; height: 20cqw; touch-action: none; cursor: pointer; }
+    .track::before, .fill { content: ""; position: absolute; left: 10cqw; top: 9.5cqw; height: 1.8cqw; transform: translateY(-50%); border-radius: 1cqw; }
+    .track::before { right: 10cqw; background: #ffffff38; box-shadow: inset 0 0 .6cqw #0006; }
+    .fill { width: calc(10.5cqw + (100% - 41cqw) * var(--t, 0)); background: linear-gradient(90deg, var(--red), var(--yel), var(--blu)); box-shadow: 0 0 2.5cqw -.2cqw var(--glow, #ffcc00); }
+    @property --bc { syntax: "<color>"; inherits: false; initial-value: #9b1020; }
+    .bub { --bc: #9b1020; position: absolute; z-index: 2; top: 9.5cqw; width: 11cqw; height: 11cqw; transform: translateY(-50%); border-radius: 50%; display: grid; place-items: center;
+      background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--bc) 70%, #fff 30%), var(--bc) 70%); border: .45cqw solid #fff;
+      box-shadow: 0 0 3cqw -.5cqw var(--bc), 0 .5cqw 1.2cqw #0008; transition: --bc 1.6s ease;
+      font-size: 3.2cqw; font-weight: 900; letter-spacing: -.03em; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000a; }
+    .bub.l { left: 0; } .bub.r { right: 0; }
+    .thumb { position: absolute; z-index: 3; top: 9.5cqw; left: calc(20.5cqw + (100% - 41cqw) * var(--t, 0)); width: 17cqw; height: 17cqw; transform: translate(-50%, -50%); border-radius: 2.4cqw; overflow: hidden;
+      display: grid; place-items: center; border: 2px solid #fff; background: radial-gradient(circle at 50% 40%, #2a1640, #0b0614 75%);
+      box-shadow: 0 0 4.5cqw -.6cqw var(--glow, #ffcc00), 0 .8cqw 2cqw #0009; }
+    .thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; transition: opacity .45s ease; }   /* the whole picture, never cropped */
+    .thumb img.fade { opacity: 0; }
+    .thumb .ph { width: 55%; height: 55%; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 1cqw #0008); }
+    /* where the cover is right now, in its corner */
+    .thumb .at, .float .ft { position: absolute; z-index: 2; right: .8cqw; bottom: .4cqw; font-size: 2.4cqw; font-weight: 800; font-style: normal; letter-spacing: 0;
+      font-variant-numeric: tabular-nums; text-shadow: 0 0 .5cqw #000, 0 0 1.2cqw #000, 0 1px 1px #000; }
+    /* the scrolling line: from off the right edge of the screen to off the left, its bottom level with the cover's bottom */
+    .tick { position: absolute; z-index: 1; left: -4cqw; right: -4cqw; top: 9.5cqw; height: 8.5cqw; overflow: hidden; white-space: nowrap; display: flex; align-items: flex-end; pointer-events: none; }
+    .tick span { display: inline-block; padding-left: 100%; font-size: 3.6cqw; line-height: 1; letter-spacing: .08em; text-shadow: 0 0 1.5cqw #000; animation: tick var(--dur, 14s) linear infinite; }
+    @keyframes tick { to { transform: translateX(-100%); } }
+    /* controls: square · triangle · circle · triangle · square, one frosted-glass family */
+    .ctrls { display: flex; align-items: center; justify-content: center; gap: 3.2cqw; }
+    .sq, .big { background: #ffffff26; -webkit-backdrop-filter: blur(2.5cqw) saturate(1.3); backdrop-filter: blur(2.5cqw) saturate(1.3);
+      border: 2px solid #ffffffa0; box-shadow: 0 0 3.5cqw -.6cqw #ffffffa0, inset 0 0 2.4cqw #ffffff40; }
+    .sq { width: 15cqw; height: 15cqw; padding: 0; border-radius: 3cqw; display: grid; place-items: center; }
+    .sq svg { width: 52%; height: 52%; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 .8cqw #fff8); }
+    /* carved into the glass: dark edge above, light edge below, slowly fading in and out (eye and play symbol) */
+    /* the eye in its glass square, like repeat: a Möbius band twisting round the eye, glass-white and carved */
+    .sq svg.eye { width: 82%; height: auto; overflow: visible; stroke: #ffffffd8; stroke-width: .8; stroke-linejoin: round;
+      filter: drop-shadow(0 -.3cqw 0 #00000080) drop-shadow(0 .3cqw .1cqw #ffffff80) drop-shadow(0 0 1.2cqw #ffffff70); animation: carve 5s ease-in-out infinite; }
+    .eye .band { fill: #ffffff52; }
+    .eye .twist { fill: #0b061466; stroke: none; }
+    .eye .seam { fill: none; stroke: #ffffffd8; }
+    .eye .iris { fill: #ffffff45; }
+    .eye .pupil { fill: #0b0614c8; stroke: #ffffffb0; }
+    .eye .glint { fill: #fff; stroke: none; }
+    @keyframes carve { 0%, 100% { opacity: .95; } 50% { opacity: .6; } }
+    .sq[aria-pressed="true"] { background: #ffffff55; border-color: #fff; box-shadow: 0 0 5cqw -.4cqw #fff, inset 0 0 3cqw #ffffff70; }
+    .sq:active, .tri:active { transform: scale(.9); }
+    .tri { width: 15cqw; height: 15cqw; padding: 0; background: none; border: 0; display: grid; place-items: center; }
+    .tri svg { width: 100%; height: 100%; overflow: visible; }
+    .tri polygon { fill: #ffffff40; stroke: #ffffffd0; stroke-width: 1.1; stroke-linejoin: round; filter: drop-shadow(0 0 1.2cqw #ffffffa0); }
+    /* play: the same glass, its light cycling red, yellow and blue */
+    @property --pc { syntax: "<color>"; inherits: true; initial-value: #ffcc00; }
+    @keyframes rgy { 0%, 100% { --pc: #ff3b30; } 33% { --pc: #ffcc00; } 66% { --pc: #2a7bff; } }
+    .big { --pc: #ffcc00; animation: rgy 6s linear infinite; width: 15cqw; height: 15cqw; border-radius: 50%; position: relative; flex: 0 0 auto; padding: 0; display: grid; place-items: center;
+      border: .6cqw solid color-mix(in srgb, var(--pc) 70%, #fff);
+      background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--pc) 40%, transparent), #ffffff22 70%);
+      box-shadow: 0 0 calc(3.5cqw + var(--pl, 0) * 6cqw) var(--pc), inset 0 0 2.5cqw #ffffff50;
+      transform: scale(calc(1 + var(--pl, 0) * .05)); }
+    .big:active { transform: scale(.95); }
+    .big::before, .big::after { content: ""; position: absolute; inset: -.6cqw; border-radius: 50%; border: .5cqw solid var(--pc); pointer-events: none;
+      opacity: 0; animation: ripple 2.4s ease-out infinite; }
+    .big::after { animation-delay: 1.2s; }
+    @keyframes ripple { 0% { transform: scale(1); opacity: .85; } 100% { transform: scale(1.75); opacity: 0; } }
+    .bigt { display: grid; place-items: center; width: 84%; height: 84%; }
+    .bigt svg { width: 100%; height: 100%; fill: #ffffffc8; stroke: #ffffffe0; stroke-width: .5; stroke-linejoin: round;
+      filter: drop-shadow(0 -.35cqw 0 #00000080) drop-shadow(0 .35cqw .1cqw #ffffff80); animation: carve 5s ease-in-out infinite; }
+
+    /* page 2: your songs */
+    .head { width: 100%; display: flex; gap: 2cqw; }
+    .tog { flex: 1; height: 10cqw; border-radius: 2.4cqw; font-size: 3.1cqw; background: #0b0614b0; border: 2px solid #ffffff70; }
+    .tog.add { background: linear-gradient(90deg, var(--red), #c98a00); border-color: #fff; }
+    .tog[aria-pressed="true"] { background: linear-gradient(90deg, var(--blu), #6a1fb0); border-color: #fff; box-shadow: 0 0 4cqw -1cqw var(--yel); }
+    .list { width: 100%; flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 1.4cqw; padding: .5cqw; }
+    .song { flex: 0 0 auto; display: flex; align-items: center; gap: 2.5cqw; width: 100%; min-height: 10cqw; padding: 1.5cqw 1.5cqw 1.5cqw 3cqw;
+      border-radius: 2.2cqw; border: 1px solid #ffffff40; background: #0b0614a8; font-size: 3.3cqw; text-transform: none; letter-spacing: .02em; }
+    .song i { flex: 0 0 1cqw; align-self: stretch; border-radius: 1cqw; background: var(--c); box-shadow: 0 0 2cqw var(--c); }
+    .song .t small { display: block; font-size: 2.3cqw; letter-spacing: .12em; text-transform: uppercase; opacity: .7; overflow: hidden; text-overflow: ellipsis; }
+    .song .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; background: none; border: 0; padding: 1.5cqw 0; font-size: inherit; text-transform: none; }
+    .song .x { flex: 0 0 auto; width: 7.5cqw; height: 7.5cqw; border-radius: 50%; background: #ffffff14; border: 1px solid #ffffff40; font-size: 3.4cqw; }
+    .song.on { border-color: #fff; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 45%, #0b0614), #0b0614c0); }
+    .song.on .t::after { content: "  ♪"; }
+    .hint { margin: auto; text-align: center; font-size: 3.2cqw; line-height: 1.6; text-transform: none; letter-spacing: .02em; text-shadow: 0 0 1cqw #000; }
+    .count { margin: 0; font-size: 2.4cqw; letter-spacing: .25em; opacity: .75; text-shadow: 0 0 1cqw #000; }
+
+    /* page 3: save a video */
+    h2 { margin: 0; font-size: 5cqw; letter-spacing: .14em; text-shadow: 0 0 2cqw #000; }
+    .vsong { margin: -1.5cqw 0 0; font-size: 3cqw; opacity: .9; text-transform: none; text-align: center; max-width: 84cqw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 0 1cqw #000; }
+    .shapes { display: flex; gap: 4cqw; align-items: flex-end; }
+    .shape { display: flex; flex-direction: column; align-items: center; gap: 1.6cqw; padding: 3cqw; border-radius: 3cqw; background: #0b0614b8; border: 2px solid #ffffff70; font-size: 3cqw; }
+    .shape:active { transform: scale(.96); }
+    .shape span { display: block; border: .6cqw solid #fff; border-radius: 1.2cqw; box-shadow: 0 0 3cqw -.5cqw var(--yel), inset 0 0 3cqw #ffffff30;
+      background: linear-gradient(135deg, #c1121f99, #c98a0099 45%, #0a4fd699); }
+    .shape.h span { width: 32cqw; height: 18cqw; }
+    .shape.v span { width: 15cqw; height: 26.7cqw; }
+    .shape small { font-size: 2.3cqw; letter-spacing: .18em; opacity: .8; }
+    .rec { display: flex; flex-direction: column; align-items: center; gap: 3cqw; margin: auto 0; }
+    .rec b { font-size: 6cqw; letter-spacing: .1em; font-variant-numeric: tabular-nums; text-shadow: 0 0 2cqw #000; }
+    .rec b::before { content: "● "; color: #ff2d28; animation: blink 1s steps(2) infinite; }
+    @keyframes blink { 50% { opacity: .2; } }
+    .act { min-width: 46cqw; height: 11cqw; border-radius: 6cqw; font-size: 3.6cqw; letter-spacing: .12em; border: 2px solid #fff;
+      background: linear-gradient(90deg, var(--red), #c98a00); box-shadow: 0 0 5cqw -1cqw var(--yel); }
+    .act.blue { background: linear-gradient(90deg, var(--blu), #6a1fb0); }
+    .vnote { margin: 0; font-size: 2.5cqw; line-height: 1.5; text-transform: none; letter-spacing: .02em; text-align: center; opacity: .9; text-shadow: 0 0 1cqw #000; max-width: 84cqw; }
+    .recdot { position: absolute; top: 3cqw; left: 3cqw; z-index: 5; padding: 1cqw 2.4cqw; border-radius: 4cqw; background: #000a; font-size: 2.6cqw; letter-spacing: .15em; }
+    .recdot::before { content: "● "; color: #ff2d28; animation: blink 1s steps(2) infinite; }
+
+    .nav { position: absolute; left: 0; right: 0; bottom: 0; height: 12cqw; display: flex; justify-content: center; align-items: center; gap: 2cqw; transition: opacity .6s; }
+
+    /* SHOW: full screen, the wave huge, the picture floating, the title flying across */
+    body.show .stage { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100svh; aspect-ratio: auto; }
+    body.show .rail, body.show .nav, body.show .recdot { opacity: 0; pointer-events: none; }
+    .float img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .float .ft { right: 1.4vmin; bottom: .8vmin; font-size: 3.4vmin; }
+    .float { position: fixed; left: 0; top: 0; z-index: 6; width: var(--fs, 30vmin); height: var(--fs, 30vmin); border-radius: 6%; overflow: hidden; background: radial-gradient(circle at 50% 40%, #2a1640, #0b0614 75%); border: 2px solid #ffffffb0;
+      box-shadow: 0 0 6vmin -1vmin var(--glow, #ffcc00), 0 2vmin 6vmin #000a; opacity: 0; pointer-events: none; transition: opacity .8s; will-change: transform; }
+    .stitle { position: fixed; left: 0; right: 0; top: 7vh; z-index: 6; overflow: hidden; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .8s; }
+    .stitle span { display: inline-block; padding-left: 100%; font: 800 7vmin/1.15 "Montserrat", "Helvetica Neue", Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase;
+      text-shadow: 0 0 2vmin #000, 0 0 6vmin var(--glow, #ffcc00); animation: tick var(--dur, 18s) linear infinite; }
+    body.show .float.has, body.show .stitle { opacity: 1; }
+    body.show .float.has { pointer-events: auto; cursor: grab; touch-action: none; }
+    /* the little game: bounce the picture off the MADE BY OVI badge */
+    .pop { position: fixed; z-index: 21; left: 0; top: 0; pointer-events: none; white-space: nowrap; transform: translate(-50%, -100%);
+      font: 900 4.2vmin/1 "Montserrat", "Helvetica Neue", Arial, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #fff;
+      text-shadow: 0 0 1vmin #000, 0 0 3vmin var(--glow, #ffcc00); opacity: 0; }
+    .pop.go { animation: pop 1.3s ease-out forwards; }
+    .pop.miss { color: #ff5a4a; }
+    @keyframes pop { 0% { opacity: 0; transform: translate(-50%, -60%) scale(.6); } 15% { opacity: 1; transform: translate(-50%, -100%) scale(1.15); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -260%) scale(1); } }
+    .nav button { height: 7.5cqw; padding: 0 4.5cqw; border-radius: 5cqw; font-size: 3.2cqw; background: transparent; border: 2px solid transparent; }
+    .nav button[aria-current="true"] { background: #ffffff2e; border-color: #fff; }
+
+    /* MADE BY OVI badge: draggable, glowing; tap opens the About page */
+    .badge { position: fixed; right: 12px; bottom: 12px; z-index: 20; padding: 9px 24px; font: 800 11px/1 "Montserrat", Arial, sans-serif;
+      letter-spacing: .2em; color: #fff; text-shadow: 0 1px 1px #000c; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab;
+      animation: glow 3s ease-in-out infinite alternate; }
+    .badge::before { content: ""; position: absolute; inset: 0; z-index: -1;
+      clip-path: polygon(0 50%, 15px 0, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, 15px 100%);
+      background: linear-gradient(180deg, #ffffff70, #fff0 52%, #00000040), linear-gradient(90deg, #c1121f, #c98a00, #0a4fd6, #7b1e2e, #c1121f) 0 0 / 300% 100%;
+      animation: shimmer 14s linear infinite; }
+    @keyframes shimmer { to { background-position: 300% 0; } }
+    @keyframes glow { from { filter: drop-shadow(0 0 3px #ffcc0088); } to { filter: drop-shadow(0 0 8px #ff3b30cc) drop-shadow(0 0 16px #0a84ff88); } }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <canvas id="bg" class="layer" aria-hidden="true"></canvas>
+    <canvas id="fx" class="layer" aria-hidden="true"></canvas>
+    <div class="shade"></div>
+    <p class="recdot" hidden>REC</p>
+
+    <div class="rail">
+      <section class="page p1" aria-label="Play">
+        <div class="bottom">
+          <div class="track" role="slider" aria-label="Song position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <i class="fill"></i>
+            <span class="bub l tdur" title="Song length">0:00</span><span class="bub r tleft" title="Time left">0:00</span>
+            <div class="tick" aria-live="polite"><span class="tt">Add songs from your phone · Möbius Bar mini player</span></div>
+            <b class="thumb"><img alt="" hidden><svg class="ph" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><i class="at tcur">0:00</i></b>
+          </div>
+          <div class="ctrls">
+            <button class="sq rpt" type="button" aria-label="Repeat" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 2l3 3-3 3M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3M20 13v2a4 4 0 0 1-4 4H4"/></svg></button>
+            <button class="tri prev" type="button" aria-label="Previous song"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="18,3.6 3.5,12 18,20.4"/></svg></button>
+            <button class="big" type="button" aria-label="Add songs"><span class="bigt"></span></button>
+            <button class="tri nxt" type="button" aria-label="Next song"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6,3.6 20.5,12 6,20.4"/></svg></button>
+            <button class="sq full" type="button" aria-label="Full screen show"><svg class="eye" viewBox="0 0 48 34" aria-hidden="true">
+              <defs><clipPath id="eyeband"><path fill-rule="evenodd" clip-rule="evenodd" d="M2 17C10 3.5 38 3.5 46 17C38 30.5 10 30.5 2 17ZM9.5 17C15.5 9 32.5 9 38.5 17C32.5 25 15.5 25 9.5 17Z"/></clipPath></defs>
+              <path class="band" fill-rule="evenodd" d="M2 17C10 3.5 38 3.5 46 17C38 30.5 10 30.5 2 17ZM9.5 17C15.5 9 32.5 9 38.5 17C32.5 25 15.5 25 9.5 17Z"/>
+              <g clip-path="url(#eyeband)"><path class="twist" d="M26 0H48V17H38.5C35.5 10.5 31.5 5.5 26 0Z"/><path class="twist" transform="rotate(180 24 17)" d="M26 0H48V17H38.5C35.5 10.5 31.5 5.5 26 0Z"/>
+                <path class="seam" d="M26 0C31.5 5.5 35.5 10.5 38.5 17"/><path class="seam" transform="rotate(180 24 17)" d="M26 0C31.5 5.5 35.5 10.5 38.5 17"/></g>
+              <circle class="iris" cx="24" cy="17" r="6.6"/><circle class="pupil" cx="24" cy="17" r="3.4"/><circle class="glint" cx="25.9" cy="15.1" r="1.45"/></svg></button>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" aria-label="Songs">
+        <div class="head">
+          <button class="tog add" type="button">＋ Add</button>
+          <button class="tog shuffle" type="button" aria-pressed="false">🔀 Shuffle</button>
+          <button class="tog repeat" type="button" aria-pressed="false">🔁 Repeat</button>
+        </div>
+        <div class="list"></div>
+        <p class="hint">No songs yet.<br>Tap ＋ Add and pick songs from your phone.<br>They stay here for next time.</p>
+        <p class="count"></p>
+      </section>
+
+      <section class="page" aria-label="Video">
+        <h2>Save a video</h2>
+        <p class="vsong">Pick a song first</p>
+        <div class="pick">
+          <div class="shapes">
+            <button class="shape h" type="button" data-shape="h"><span></span>Horizontal<small>YouTube 16:9</small></button>
+            <button class="shape v" type="button" data-shape="v"><span></span>Vertical<small>Shorts 9:16</small></button>
+          </div>
+        </div>
+        <div class="rec" hidden>
+          <b class="rect">0:00</b>
+          <button class="act stop" type="button">Stop &amp; keep</button>
+        </div>
+        <div class="done-box rec" hidden>
+          <button class="act save" type="button">Save video</button>
+          <button class="act blue again" type="button">Make another</button>
+        </div>
+        <p class="vnote">The song plays from the start and the video records the whole song, lights and wave included. Keep the screen on until it finishes.</p>
+      </section>
+    </div>
+
+    <nav class="nav">
+      <button type="button" data-p="0" aria-current="true">Play</button>
+      <button type="button" data-p="1" aria-current="false">Songs</button>
+      <button type="button" data-p="2" aria-current="false">Video</button>
+    </nav>
+    <audio class="player" preload="auto"></audio>
+    <input class="picker" type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac" multiple hidden>
+  </main>
+
+  <div class="float"><img alt=""><i class="ft">0:00</i></div>
+  <div class="stitle" aria-hidden="true"><span></span></div>
+  <div class="pop" aria-live="polite"></div>
+  <div class="badge" role="note" aria-label="Made by Ovi">MADE BY OVI</div>
+
+  <script type="application/json" id="about">
+{
+  "title": "Möbius Bar Mini Player",
+  "tagline": "Your own songs, the Möbius Bar lights and a glowing wave, and a one-tap video of the song for YouTube, on one square stage.",
+  "sections": [
+    { "h": "What it is", "p": [
+      "It opens empty. Add songs from your phone and they stay in the player for next time, on your phone only.",
+      "Play is kept minimal: a live wave edge to edge through the middle and, at the bottom, a timeline between two red bubbles (the song's length and the time left) where the song's own cover, or Ovi's Möbius Bar and My Jam pictures changing at random, rides along with the current time in its corner (drag it to jump), the title, artist and album scrolling under the line; below it five frosted-glass buttons: repeat, previous, play (glowing red, yellow and blue), next and full screen. The lights pick their own looks from twelve: Ovi's colours, lava, disco, dark red, neon, candle, ocean, sunset, fire, galaxy, ice and jungle, some with starfields and rings that ride out with the beat.",
+      "Show: tap the full-screen square, or leave it playing untouched for 30 seconds. The wave goes huge, the picture floats and swaps on the beat, the title flies across the top. In show mode the picture is a game: drag MADE BY OVI under it and bounce it back (every catch a little faster, the floor is a miss), or grab the picture and throw it. Tap anywhere else to come back."
+    ] },
+    { "h": "Making a video", "p": [
+      "On the Video page choose Horizontal (16:9, YouTube) or Vertical (9:16, Shorts). The song plays from the start and the whole song is recorded with the lights, the wave, its cover picture and its title.",
+      "When it ends, tap Save video. The phone saves an MP4 where it can, otherwise a WebM; YouTube takes both."
+    ] },
+    { "h": "How it was made", "p": [
+      "Made by Ovi with Claude. Concept, design and direction: Ovi Demetrian.",
+      "Built with Claude (Anthropic): one HTML file, the lights and wave drawn on canvas from the Web Audio analyser, the video recorded in the browser. Installable as an app from the home screen."
+    ] }
+  ],
+  "links": [
+    { "label": "The big Möbius Bar player", "url": "https://ovidemetrian.github.io/MOBIUS-BAR-PLAY-THE-LAMP/" },
+    { "label": "Ovi on GitHub", "url": "https://github.com/ovidemetrian" }
+  ],
+  "credit": "Concept &amp; design: <b>Ovi Demetrian<\/b> · built with Claude"
+}
+  </script>
+  <script src="about.js" defer></script>
+
+  <script>
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const player = $(".player"), big = $(".big"), bigT = $(".bigt"), picker = $(".picker");
+  const track = $(".track"), thumbImg = $(".thumb img"), tcur = $(".tcur"), tdur = $(".tdur"), tleft = $(".tleft"), rptBtn = $(".rpt"), floatImg = $(".float img"), floatBox = $(".float"), ftime = $(".float .ft"), stSpan = $(".stitle span");
+  const list = $(".list"), hint = $(".hint"), countEl = $(".count"), tt = $(".tt"), thumbPh = $(".thumb .ph");
+  const rail = $(".rail"), stage = $(".stage"), shuffleBtn = $(".shuffle"), repeatBtn = $(".repeat");
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+                  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+  const COLORS = ["#c1121f", "#c98a00", "#0a4fd6", "#e0661a", "#6a1fb0", "#1e8f3e"];
+  const state = Object.assign({ shuffle: false, repeat: false }, store.get("mobius-mini.state", {}));
+  let songs = [], cur = -1, page = 0;
+
+  // ── Songs from the phone, kept in this browser (IndexedDB) ─────────
+  const DB = new Promise(res => {
+    try {
+      const r = indexedDB.open("mobius-mini", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
+      r.onsuccess = () => res(r.result); r.onerror = () => res(null);
+    } catch { res(null); }
+  });
+  const tx = async (mode, fn) => { const db = await DB; if (!db) return null;
+    return new Promise(res => { const t = db.transaction("songs", mode), s = t.objectStore("songs"); const q = fn(s); t.oncomplete = () => res(q && q.result); t.onerror = () => res(null); }); };
+  const titleOf = n => n.replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Untitled";
+
+  // ── Read the song's own tags (ID3 in MP3s): title, artist, album, year, cover picture ──
+  async function readTags(blob) {
+    try {
+      const h = new Uint8Array(await blob.slice(0, 10).arrayBuffer());
+      if (h[0] !== 0x49 || h[1] !== 0x44 || h[2] !== 0x33 || h[3] < 3) return {};
+      const v = h[3], ss = (a, i) => ((a[i] & 127) << 21) | ((a[i + 1] & 127) << 14) | ((a[i + 2] & 127) << 7) | (a[i + 3] & 127);
+      const be = (a, i) => ((a[i] << 24) | (a[i + 1] << 16) | (a[i + 2] << 8) | a[i + 3]) >>> 0;
+      const size = ss(h, 6), b = new Uint8Array(await blob.slice(10, 10 + size).arrayBuffer());
+      let p = 0;
+      if (h[5] & 0x40) p = v === 4 ? ss(b, 0) : 4 + be(b, 0);
+      const dec = (enc, bytes) => {
+        const label = enc === 0 ? "iso-8859-1" : enc === 1 ? "utf-16" : enc === 2 ? "utf-16be" : "utf-8";
+        try { return new TextDecoder(label).decode(bytes).split("\0")[0].trim(); } catch { return ""; }
+      };
+      const out = {};
+      while (p + 10 <= b.length) {
+        const id = String.fromCharCode(b[p], b[p + 1], b[p + 2], b[p + 3]);
+        if (!/^[A-Z0-9]{4}$/.test(id)) break;
+        const fs = v === 4 ? ss(b, p + 4) : be(b, p + 4), d = b.subarray(p + 10, p + 10 + fs);
+        p += 10 + fs;
+        if (!fs) continue;
+        if (id === "TIT2") out.title = dec(d[0], d.subarray(1));
+        else if (id === "TPE1") out.artist = dec(d[0], d.subarray(1));
+        else if (id === "TALB") out.album = dec(d[0], d.subarray(1));
+        else if ((id === "TYER" || id === "TDRC") && !out.year) out.year = dec(d[0], d.subarray(1)).slice(0, 4);
+        else if (id === "APIC" && !out.art) {
+          const enc = d[0]; let i = 1; while (i < d.length && d[i]) i++;
+          let mime = new TextDecoder("iso-8859-1").decode(d.subarray(1, i)) || "image/jpeg"; i += 2;   // skip mime end + picture type
+          if (enc === 1 || enc === 2) { while (i + 1 < d.length && (d[i] || d[i + 1])) i += 2; i += 2; } else { while (i < d.length && d[i]) i++; i++; }
+          if (!mime.includes("/")) mime = "image/" + mime.toLowerCase().replace("jpg", "jpeg");
+          if (d.length - i > 100) out.art = new Blob([d.slice(i)], { type: mime });
+        }
+      }
+      return out;
+    } catch { return {}; }
+  }
+  const songOf = r => ({ id: r.id, title: r.title, artist: r.artist || "", album: r.album || "", year: r.year || "", art: r.art || null, blob: r.blob, url: null, artUrl: null, artPic: null });
+  // ── The icon: Ovi's pictures (mini/art on GitHub) take turns at random; a song's own cover wins ──
+  const REPO = "ovidemetrian/MOBIUS-BAR-PLAY-THE-LAMP";
+  const ART = "https://ovidemetrian.github.io/MOBIUS-BAR-PLAY-THE-LAMP/";   // Ovi's pictures live with the big player
+  const PICS_FALLBACK = [0, 1, 2, 3, 4].map(i => ART + "neon-" + i + ".webp");
+  let pics = store.get("mobius-mini.pics2", null) || PICS_FALLBACK, shown = "", iconSrc = "", iconPic = null;
+  async function loadPics() {
+    try {
+      const r = await fetch("https://api.github.com/repos/" + REPO + "/contents/mini/art", { headers: { Accept: "application/vnd.github+json" } });
+      if (!r.ok) return;
+      const list = (await r.json()).filter(f => f.type === "file" && /\.(jpe?g|png|webp|gif|avif)$/i.test(f.name)).map(f => ART + "mini/art/" + encodeURIComponent(f.name));
+      if (list.length) { pics = list; store.set("mobius-mini.pics2", list); if (!(songs[cur] && songs[cur].art)) rotate(); }
+    } catch {}
+  }
+  function showIcon(src) {
+    if (shown === src) return;
+    shown = src;
+    const pic = new Image(); pic.src = src; iconPic = pic;
+    thumbImg.classList.add("fade");
+    setTimeout(() => {
+      if (shown !== src) return;
+      thumbImg.onload = () => { thumbImg.classList.remove("fade"); thumbPh.style.display = "none"; };
+      thumbImg.onerror = () => { thumbImg.classList.remove("fade"); thumbImg.hidden = true; thumbPh.style.display = ""; floatBox.classList.remove("has"); };
+      thumbImg.hidden = false; thumbImg.src = src; floatImg.src = src; floatBox.classList.add("has");
+    }, thumbImg.hidden ? 0 : 300);
+  }
+  function rotate() {
+    const s = songs[cur];
+    if (s && s.art) { showIcon(artOf(s)); return; }
+    let n; do { n = pics[Math.floor(Math.random() * pics.length)]; } while (pics.length > 1 && n === iconSrc);
+    iconSrc = n; showIcon(n);
+  }
+  setInterval(rotate, 7000);
+  // the two time bubbles: each changes to its own dark colour at its own moment, never both at once, never the same colour
+  const BUBC = ["#9b1020", "#b08200", "#7a5600", "#146b34", "#5b1d8f"], bubs = [tdur, tleft];
+  let bubLast = 0;
+  function bubTurn(i) {
+    const other = bubs[1 - i].style.getPropertyValue("--bc"), mine = bubs[i].style.getPropertyValue("--bc");
+    if (performance.now() - bubLast > 1200) {
+      const pick = BUBC.filter(c => c !== other && c !== mine);
+      bubs[i].style.setProperty("--bc", pick[Math.floor(Math.random() * pick.length)]); bubLast = performance.now();
+    }
+    setTimeout(() => bubTurn(i), 4000 + Math.random() * 5000);
+  }
+  tdur.style.setProperty("--bc", BUBC[0]); tleft.style.setProperty("--bc", BUBC[4]);
+  setTimeout(() => bubTurn(0), 3000); setTimeout(() => bubTurn(1), 6500);
+  const artOf = s => { if (!s.art) return null; if (!s.artUrl) { s.artUrl = URL.createObjectURL(s.art); s.artPic = new Image(); s.artPic.src = s.artUrl; } return s.artUrl; };
+
+  async function loadSaved() {
+    const rows = await tx("readonly", s => s.getAll()) || [];
+    for (const r of rows) if (!r.tagged) {   // songs added before tags were read: read them once now
+      const t = await readTags(r.blob); Object.assign(r, { title: t.title || r.title, artist: t.artist || "", album: t.album || "", year: t.year || "", art: t.art || null, tagged: 1 });
+      await tx("readwrite", s => s.put(r));
+    }
+    songs = rows.map(songOf);
+    render();
+  }
+  async function addFiles(files) {
+    for (const f of files) {
+      const t = await readTags(f);
+      const row = { title: t.title || titleOf(f.name), artist: t.artist || "", album: t.album || "", year: t.year || "", art: t.art || null, blob: f, tagged: 1 };
+      const id = await tx("readwrite", s => s.add(row));
+      songs.push(songOf(Object.assign({ id: id == null ? "t" + Math.random() : id }, row)));
+    }
+    render();
+    if (cur < 0 && songs.length) play(songs.length - files.length);
+  }
+  async function removeSong(i) {
+    const s = songs[i];
+    if (s.id != null && typeof s.id === "number") await tx("readwrite", st => st.delete(s.id));
+    if (s.url) URL.revokeObjectURL(s.url);
+    if (s.artUrl) URL.revokeObjectURL(s.artUrl);
+    if (i === cur) { player.pause(); player.removeAttribute("src"); player.load(); cur = -1; }
+    else if (i < cur) cur--;
+    songs.splice(i, 1);
+    render();
+  }
+  const srcOf = s => s.url || (s.url = URL.createObjectURL(s.blob));
+
+  function render() {
+    list.replaceChildren(...songs.map((s, i) => {
+      const row = document.createElement("div");
+      row.className = "song"; row.style.setProperty("--c", COLORS[i % COLORS.length]);
+      row.innerHTML = '<i></i><button class="t" type="button"></button><button class="x" type="button">✕</button>';
+      const t = row.querySelector(".t"); t.textContent = s.title; t.addEventListener("click", () => play(i));
+      if (s.artist || s.album) { const sm = document.createElement("small"); sm.textContent = [s.artist, s.album].filter(Boolean).join(" · "); t.append(sm); }
+      const x = row.querySelector(".x"); x.setAttribute("aria-label", "Remove " + s.title); x.addEventListener("click", () => removeSong(i));
+      return row;
+    }));
+    hint.hidden = songs.length > 0;
+    countEl.textContent = songs.length ? songs.length + (songs.length === 1 ? " song" : " songs") + " on this phone" : "";
+    mark();
+  }
+  const ICON = { play: "M7 4.5v15l13-7.5z", pause: "M6 4.5h4.2v15H6zM13.8 4.5H18v15h-4.2z", add: "M10.6 4h2.8v6.6H20v2.8h-6.6V20h-2.8v-6.6H4v-2.8h6.6z" };
+  function ticker(text) {
+    if (tt.textContent === text) return;
+    tt.textContent = text;
+    tt.style.setProperty("--dur", Math.max(9, text.length * .22).toFixed(1) + "s");
+    tt.style.animation = "none"; void tt.offsetWidth; tt.style.animation = "";   // start the scroll fresh
+    stSpan.textContent = text; stSpan.style.setProperty("--dur", Math.max(12, text.length * .32).toFixed(1) + "s");
+  }
+  function mark() {
+    [...list.children].forEach((el, i) => el.classList.toggle("on", i === cur));
+    const icon = !songs.length ? ICON.add : player.paused ? ICON.play : ICON.pause;
+    if (bigT.dataset.i !== icon) { bigT.dataset.i = icon; bigT.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + icon + '"/></svg>'; }
+    big.setAttribute("aria-label", !songs.length ? "Add songs" : player.paused ? "Play" : "Pause");
+    const s = songs[cur];
+    if (cur >= 0 && s) {
+      ticker([s.title, s.artist, s.album, s.year].filter(Boolean).join("   ·   ") + "   ·   Möbius Bar");
+      const a = artOf(s); if (a) showIcon(a); else if (shown !== iconSrc || !iconSrc) rotate();
+      $(".vsong").textContent = s.title;
+      if ("mediaSession" in navigator && window.MediaMetadata) try { navigator.mediaSession.metadata = new MediaMetadata({ title: s.title, artist: s.artist || "Möbius Bar", album: s.album || "Mini Player",
+        artwork: a ? [{ src: a, sizes: "512x512", type: s.art.type }] : [{ src: "https://ovidemetrian.github.io/MOBIUS-BAR-PLAY-THE-LAMP/icon-512.png", sizes: "512x512", type: "image/png" }] }); } catch {}
+    } else {
+      ticker(songs.length ? "Tap play   ·   " + songs.length + (songs.length === 1 ? " song" : " songs") + " ready   ·   Möbius Bar mini player" : "Add songs from your phone   ·   tap ＋ below   ·   Möbius Bar mini player");
+      if (shown !== iconSrc || !iconSrc) rotate();
+      $(".vsong").textContent = songs.length ? "Pick a song first" : "Add a song first";
+    }
+  }
+
+  // ── Playback through the analyser (local files can be measured) ────
+  let actx = null, an = null, recDest = null;
+  const freq = new Uint8Array(512), wave = new Uint8Array(1024);
+  function graph() {
+    if (!actx) {
+      try {
+        actx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = actx.createMediaElementSource(player);
+        an = actx.createAnalyser(); an.fftSize = 1024; an.smoothingTimeConstant = .78;
+        src.connect(an); an.connect(actx.destination);
+        if (actx.createMediaStreamDestination) { recDest = actx.createMediaStreamDestination(); an.connect(recDest); }
+      } catch { actx = null; an = null; }
+    }
+    if (actx && actx.state === "suspended") actx.resume().catch(() => {});
+  }
+  function play(i) {
+    if (!songs.length) { picker.click(); return; }
+    graph();
+    cur = (i + songs.length) % songs.length;
+    player.src = srcOf(songs[cur]);
+    player.play().catch(() => {});
+    kick(); mark();
+  }
+  function next(step = 1) {
+    if (!songs.length) return;
+    if (state.shuffle && songs.length > 1) { let n; do { n = Math.floor(Math.random() * songs.length); } while (n === cur); play(n); }
+    else play(cur + step);
+  }
+  big.addEventListener("click", () => {
+    if (!songs.length) { picker.click(); return; }
+    graph();
+    if (cur < 0) { play(state.shuffle ? Math.floor(Math.random() * songs.length) : 0); return; }
+    if (player.paused) player.play().catch(() => {}); else if (!rec) player.pause();
+  });
+  picker.addEventListener("change", () => { const f = [...picker.files]; picker.value = ""; if (f.length) addFiles(f); });
+  $(".add").addEventListener("click", () => picker.click());
+  player.addEventListener("play", mark);
+  player.addEventListener("pause", mark);
+  player.addEventListener("ended", () => {
+    if (rec) { stopRec(); return; }
+    if (state.repeat) { player.currentTime = 0; player.play().catch(() => {}); } else next(1);
+  });
+  $(".prev").addEventListener("click", () => { if (rec) return; if (cur >= 0 && player.currentTime > 4) { player.currentTime = 0; return; } cur < 0 ? play(songs.length - 1) : next(-1); });
+  $(".nxt").addEventListener("click", () => { if (rec) return; cur < 0 ? play(0) : next(1); });
+
+  function renderToggles() {
+    shuffleBtn.setAttribute("aria-pressed", String(state.shuffle));
+    repeatBtn.setAttribute("aria-pressed", String(state.repeat));
+    rptBtn.setAttribute("aria-pressed", String(state.repeat));
+    store.set("mobius-mini.state", state);
+  }
+  shuffleBtn.addEventListener("click", () => { state.shuffle = !state.shuffle; renderToggles(); });
+  repeatBtn.addEventListener("click", () => { state.repeat = !state.repeat; renderToggles(); });
+  rptBtn.addEventListener("click", () => { state.repeat = !state.repeat; renderToggles(); });
+
+  // ── Timeline: drag the cover to move through the song ─────────────
+  let scrub = false;
+  function seekTo(e) {
+    const r = track.getBoundingClientRect(), pad = .205 * stage.clientWidth;   // the cover travels between the two bubbles
+    const t = Math.min(1, Math.max(0, (e.clientX - r.left - pad) / Math.max(1, r.width - 2 * pad))), d = player.duration;
+    if (d > 0 && isFinite(d)) player.currentTime = t * d;
+  }
+  track.addEventListener("pointerdown", e => { if (rec || cur < 0) return; scrub = true; track.setPointerCapture(e.pointerId); seekTo(e); });
+  track.addEventListener("pointermove", e => { if (scrub) seekTo(e); });
+  const endScrub = () => { scrub = false; };
+  track.addEventListener("pointerup", endScrub); track.addEventListener("pointercancel", endScrub);
+  if ("mediaSession" in navigator) {
+    const set = (a, f) => { try { navigator.mediaSession.setActionHandler(a, f); } catch {} };
+    set("play", () => player.play()); set("pause", () => { if (!rec) player.pause(); });
+    set("nexttrack", () => { if (!rec) next(1); }); set("previoustrack", () => { if (!rec) next(-1); });
+  }
+
+  // ── Pages: Play | Songs | Video ────────────────────────────────────
+  const navBtns = [...document.querySelectorAll(".nav button")];
+  function go(p) { page = p; rail.style.setProperty("--p", p); navBtns.forEach((b, i) => b.setAttribute("aria-current", String(i === p))); }
+  navBtns.forEach(b => b.addEventListener("click", () => go(+b.dataset.p)));
+  stage.addEventListener("scroll", () => { stage.scrollLeft = 0; stage.scrollTop = 0; });
+  let sx = null;
+  stage.addEventListener("pointerdown", e => { sx = e.target.closest(".list, .track") ? null : [e.clientX, e.clientY]; });
+  stage.addEventListener("pointerup", e => {
+    if (!sx) return; const dx = e.clientX - sx[0], dy = e.clientY - sx[1]; sx = null;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(Math.max(0, Math.min(2, page + (dx < 0 ? 1 : -1))));
+  });
+
+  // ── Lights + wave: one painter for the screen and for the video ────
+  const MOODS = [
+    { pal: [[193, 18, 31], [255, 204, 0], [10, 79, 214], [224, 102, 26]], rays: 1, beams: 0, speed: .35 },   // Ovi skin
+    { pal: [[255, 45, 40], [255, 206, 0], [255, 110, 0], [150, 70, 255]], rays: 0, beams: 0, speed: .45 },   // lava
+    { pal: [[255, 45, 40], [255, 206, 0], [170, 80, 255], [10, 120, 255]], rays: 0, beams: 1, speed: .8 },   // disco
+    { pal: [[123, 30, 46], [193, 18, 31], [201, 138, 0], [60, 20, 40]], rays: 1, beams: 0, speed: .22 },     // dark red, elegant
+    { pal: [[255, 0, 130], [180, 90, 255], [255, 225, 60], [0, 215, 255]], rays: 0, beams: 1, speed: .6 },   // neon
+    { pal: [[255, 175, 60], [255, 105, 50], [130, 70, 170], [40, 60, 150]], rays: 1, beams: 0, speed: .15 }, // candle
+    { pal: [[0, 180, 200], [10, 79, 214], [0, 90, 140], [120, 230, 255]], rays: 0, beams: 0, rings: 1, speed: .3 },             // ocean
+    { pal: [[255, 80, 140], [255, 140, 40], [140, 40, 180], [255, 200, 80]], rays: 1, beams: 0, stars: 1, speed: .35 },        // sunset
+    { pal: [[180, 0, 40], [255, 90, 0], [255, 200, 0], [90, 0, 20]], rays: 0, beams: 1, rings: 1, speed: .7 },                // fire
+    { pal: [[80, 0, 160], [200, 0, 180], [20, 40, 200], [255, 255, 255]], rays: 0, beams: 0, stars: 1, rings: 1, speed: .25 }, // galaxy
+    { pal: [[200, 230, 255], [90, 140, 255], [160, 120, 255], [40, 60, 160]], rays: 1, beams: 0, stars: 1, speed: .2 },       // ice
+    { pal: [[30, 200, 90], [255, 206, 0], [0, 180, 170], [20, 90, 60]], rays: 0, beams: 1, speed: .55 }                        // jungle neon
+  ];
+  const STARS = Array.from({ length: 70 }, () => [Math.random(), Math.random(), Math.random(), Math.random()]);
+  const bg = $("#bg"), bx = bg.getContext("2d"), fx = $("#fx"), fxc = fx.getContext("2d");
+  const field = document.createElement("canvas"), fc = field.getContext("2d"); field.width = field.height = 96;   // the soft colour field, shared
+  let W = 1, H = 1, dpr = 1;
+  function size() {
+    const r = stage.getBoundingClientRect(); dpr = Math.min(1.5, devicePixelRatio || 1);
+    W = fx.width = Math.round(r.width * dpr); H = fx.height = Math.round(r.height * dpr);
+    bg.width = 160; bg.height = 160;
+  }
+  let waveY = 100;   // the middle of the open space above the timeline
+  const bottomEl = $(".bottom");
+  function size2() { const r = stage.getBoundingClientRect(), b = bottomEl.getBoundingClientRect(); waveY = Math.max(40, (b.top - r.top) / 2); }
+  new ResizeObserver(() => { size(); size2(); }).observe(stage); size(); size2();
+
+  const lerp = (a, b, t) => a + (b - a) * t, sm = t => t * t * (3 - 2 * t);
+  const rgba = (c, a) => "rgba(" + (c[0] | 0) + "," + (c[1] | 0) + "," + (c[2] | 0) + "," + Math.max(0, Math.min(1, a)).toFixed(3) + ")";
+  const lift = (c, k = .3) => [lerp(c[0], 255, k), lerp(c[1], 250, k), lerp(c[2], 245, k)];
+  let from = MOODS[0], to = MOODS[0], blendAt = -99, moodAt = 0, nextIn = 25, mt = 1;
+  const seeds = Array.from({ length: 8 }, () => [Math.random(), Math.random(), Math.random(), Math.random()]);
+  function kick() { moodAt = clock - 999; }
+  let clock = 0, last = performance.now() / 1000, ph = 0, cph = 0, rot = 0, pulse = 0, level = 0, bassAvg = 0, lastBeat = 0, beatHit = false, lastSwap = 0, waveGain = 1;
+
+  function color(x) {
+    const pick = pal => { const n = pal.length, xx = ((x % n) + n) % n, i = Math.floor(xx), f = sm(xx - i), a = pal[i], b = pal[(i + 1) % n];
+      return [lerp(a[0], b[0], f), lerp(a[1], b[1], f), lerp(a[2], b[2], f)]; };
+    const a = pick(from.pal), b = pick(to.pal);
+    return [lerp(a[0], b[0], mt), lerp(a[1], b[1], mt), lerp(a[2], b[2], mt)];
+  }
+  function paintField(ctx, S) {
+    ctx.globalCompositeOperation = "source-over"; ctx.fillStyle = "#0b0614"; ctx.fillRect(0, 0, S, S);
+    ctx.globalCompositeOperation = "screen";
+    seeds.forEach((s, i) => {
+      const x = (.5 + .42 * Math.sin(ph * (.2 + .15 * s[0]) + s[1] * 6.28)) * S, y = (.5 + .42 * Math.cos(ph * (.17 + .15 * s[2]) + s[3] * 6.28)) * S;
+      const r = S * (.28 + .06 * Math.sin(ph + i) + pulse * .08 + level * .12), c = color(i * .7 + cph);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, rgba(c, .95)); g.addColorStop(1, rgba(c, 0));
+      ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    });
+    ctx.globalCompositeOperation = "source-over";
+  }
+  function paintRays(ctx, w, h, cx, cy) {
+    ctx.globalCompositeOperation = "lighter";
+    const rays = lerp(from.rays, to.rays, mt) * .6 + .4, len = Math.hypot(w, h) * .8;
+    for (let k = 0; k < 12; k++) {
+      const a = rot + k / 12 * 6.283, sp = .06 + .02 * Math.sin(ph * .3 + k);
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, len), c = color(k * .5 + cph * 1.3);
+      g.addColorStop(0, rgba(c, .14 * rays * (.7 + pulse))); g.addColorStop(1, rgba(c, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, len, a - sp, a + sp); ctx.closePath(); ctx.fill();
+    }
+    const beams = lerp(from.beams, to.beams, mt);
+    if (beams > .02) [.15, .4, .6, .85].forEach((sx, k) => {
+      const a = Math.PI / 2 + .5 * Math.sin(ph * .6 * (1 + k * .2) + k * 1.7), x0 = sx * w, L = h * 1.5, sp = .05 + .03 * pulse;
+      const g = ctx.createRadialGradient(x0, 0, 0, x0, 0, L), c = color(k * 1.3 + cph * 2);
+      g.addColorStop(0, rgba(c, .32 * beams * (.5 + pulse))); g.addColorStop(1, rgba(c, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x0, 0); ctx.arc(x0, 0, L, a - sp, a + sp); ctx.closePath(); ctx.fill();
+    });
+    const u = Math.min(w, h) / 400;
+    const stars = lerp(from.stars || 0, to.stars || 0, mt);   // a twinkling starfield
+    if (stars > .02) STARS.forEach((st, j) => {
+      const tw = .5 + .5 * Math.sin(clock * (1.5 + st[2] * 3) + j);
+      ctx.fillStyle = rgba(lift(color(j * .3 + cph), .6), stars * tw * (.5 + pulse * .5));
+      ctx.beginPath(); ctx.arc(st[0] * w, st[1] * h, (.8 + st[3] * 2.2) * u * (1 + pulse * .6), 0, 6.283); ctx.fill();
+    });
+    const rings = lerp(from.rings || 0, to.rings || 0, mt);   // rings that ride out from the middle with the music
+    if (rings > .02) for (let i = 0; i < 5; i++) {
+      const f = (clock * (.18 + level * .3) + i / 5) % 1, R = f * Math.hypot(w, h) * .6;
+      ctx.strokeStyle = rgba(lift(color(i * .9 + cph * 2), .2), rings * (1 - f) * (.35 + pulse * .5));
+      ctx.lineWidth = (2 + pulse * 3) * u; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.283); ctx.stroke();
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }
+  // the glowing sine wave: dark ribbon underneath, three coloured passes on top
+  function paintWave(ctx, x, cy, w, amp, k) {
+    const N = 200;
+    const trace = dir => {
+      ctx.beginPath();
+      for (let i = 0; i <= N; i++) {
+        const v = Math.max(-1.15, Math.min(1.15, (wave[Math.floor(i / N * (wave.length - 1))] - 128) / 128 * waveGain)) * dir;
+        const yy = cy + v * amp * (1 + pulse * .3);
+        i ? ctx.lineTo(x + w * i / N, yy) : ctx.moveTo(x, yy);
+      }
+    };
+    const grad = (base, a) => { const g = ctx.createLinearGradient(x, 0, x + w, 0); for (let j = 0; j <= 4; j++) g.addColorStop(j / 4, rgba(lift(color(base + j * .8 + cph)), a)); return g; };
+    ctx.save(); ctx.lineJoin = "round"; ctx.lineCap = "round";
+    ctx.shadowColor = "rgba(0,0,0,.75)"; ctx.shadowBlur = 8 * k; ctx.shadowOffsetY = 2 * k;
+    trace(1); ctx.lineWidth = 11 * k; ctx.strokeStyle = "rgba(8,4,16,.55)"; ctx.stroke();
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    for (const [lw, al, base, dir] of [[7, .3, 0, 1], [2.8, 1, 1.5, 1], [1.7, .8, 3, -.6]]) { trace(dir); ctx.lineWidth = lw * k; ctx.strokeStyle = grad(base, al); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  function frame(ms) {
+    const now = ms / 1000, dt = Math.min(.1, now - last); last = now; clock += dt;
+    if (clock - moodAt > nextIn) {   // a new mood, all by itself
+      moodAt = clock; nextIn = 20 + Math.random() * 25;
+      let m; do { m = MOODS[Math.floor(Math.random() * MOODS.length)]; } while (m === to);
+      from = to; to = m; blendAt = clock;
+    }
+    mt = sm(Math.min(1, (clock - blendAt) / 4));
+    const live = an && !player.paused && actx && actx.state === "running";
+    if (live) {
+      an.getByteFrequencyData(freq); an.getByteTimeDomainData(wave);
+      let pk = 0; for (let i = 0; i < wave.length; i++) pk = Math.max(pk, Math.abs(wave[i] - 128)); pk /= 128;
+      const want = Math.min(5, .9 / Math.max(.04, pk)); waveGain = lerp(waveGain, want, want < waveGain ? .5 : .08);   // jumps down at once, climbs back fast
+      let s = 0; for (let i = 0; i < freq.length; i++) s += freq[i];
+      level = lerp(level, s / freq.length / 255, .2);
+      let bass = 0; for (let i = 1; i < 8; i++) bass += freq[i]; bass /= 7;
+      if (bass > bassAvg * 1.18 + 6 && bass > 90 && clock - lastBeat > .24) { pulse = 1; lastBeat = clock; beatHit = true; }
+      bassAvg = bassAvg * .93 + bass * .07;
+    } else {   // resting: a slow, gentle sine
+      const a = .22;
+      for (let i = 0; i < wave.length; i++) { const x = i / wave.length; wave[i] = 128 + 127 * a * (Math.sin(x * 12.566 + clock * 2.4) * .7 + Math.sin(x * 28.27 - clock * 1.7) * .3); }
+      level = lerp(level, .18, .05); pulse = Math.max(pulse, .25 * (.5 + .5 * Math.sin(clock * 1.5))); waveGain = lerp(waveGain, 1, .1);
+    }
+    pulse *= Math.pow(.05, dt);
+    ph += dt * lerp(from.speed, to.speed, mt) * (1 + pulse * .4); cph += dt * .05; rot += dt * (.12 + level * .6 + pulse * .8);
+
+    // the screen
+    paintField(bx, 160);
+    fxc.clearRect(0, 0, W, H);
+    paintRays(fxc, W, H, W / 2, showing ? H * .5 : waveY * dpr);
+    const d = player.duration, has = cur >= 0 && d > 0 && isFinite(d), t = has ? player.currentTime / d : 0;
+    if (showing) {
+      paintWave(fxc, -4 * dpr, H * .55, W + 8 * dpr, Math.min(W, H) * .24, dpr * 1.6);
+      fxc.fillStyle = "rgba(255,255,255,.22)"; fxc.fillRect(0, H - 3 * dpr, W, 3 * dpr);   // a thin time line along the bottom
+      fxc.fillStyle = rgba(lift(color(cph * 2)), 1); fxc.fillRect(0, H - 3 * dpr, W * t, 3 * dpr);
+      floatShow(dt);
+      if (beatHit && clock - lastSwap > 2.2 && !(songs[cur] && songs[cur].art)) { lastSwap = clock; rotate(); }   // the picture swaps on the beat
+    } else if (page === 0) paintWave(fxc, -4 * dpr, waveY * dpr, W + 8 * dpr, Math.min(H * .15, waveY * dpr * .8), dpr);
+    beatHit = false;
+    const glow = color(cph * 2);
+    big.style.setProperty("--pl", pulse.toFixed(3));
+    document.body.style.setProperty("--glow", rgba(glow, .9));
+    track.style.setProperty("--t", t.toFixed(4)); track.setAttribute("aria-valuenow", Math.round(t * 100));
+    tcur.textContent = ftime.textContent = has ? fmtT(player.currentTime) : "0:00"; tdur.textContent = has ? fmtT(d) : "0:00"; tleft.textContent = has ? "-" + fmtT(d - player.currentTime) : "0:00";
+    if (!showing && !rec && !player.paused && clock - lastTouch > IDLE && document.visibilityState === "visible") enterShow(false);
+    if (rec) paintVideo();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ── SHOW: full screen after 30 s untouched, or with the full-screen square ──
+  const IDLE = 30;
+  let showing = false, lastTouch = 0, showWake = null, wentFs = false, quietUntil = 0;
+  const fl = { x: 0, y: 0, vx: 0, vy: 0, s: 200 };
+  function floatShow(dt) {
+    const vw = innerWidth, vh = innerHeight;
+    fl.s = Math.round(Math.min(vw, vh) * .3); floatBox.style.setProperty("--fs", fl.s + "px");
+    if (!grab) {
+      fl.x += fl.vx * dt; fl.y += fl.vy * dt;
+      if (fl.x < 0) { fl.x = 0; fl.vx = Math.abs(fl.vx); } if (fl.x > vw - fl.s) { fl.x = vw - fl.s; fl.vx = -Math.abs(fl.vx); }
+      if (fl.y < vh * .2) { fl.y = vh * .2; fl.vy = Math.abs(fl.vy); }
+      if (fl.y > vh - fl.s - 12) { fl.y = vh - fl.s - 12; fl.vy = -Math.abs(fl.vy); miss(); }
+      catchIt();
+    }
+    const tilt = Math.sin(clock * .4) * 4, sc = 1 + pulse * .07;
+    floatBox.style.transform = "translate3d(" + fl.x.toFixed(1) + "px," + fl.y.toFixed(1) + "px,0) rotate(" + tilt.toFixed(2) + "deg) scale(" + sc.toFixed(3) + ")";
+  }
+  // the game: MADE BY OVI is the paddle; the picture bounces off it, the floor is a miss
+  const popEl = $(".pop"), JOKES = ["Nice catch!", "Ovi saves!", "Back to the bar!", "Another round!", "Shaken, not dropped", "On the house!", "Bartender reflexes!", "Möbius bounce!", "Still got it!", "Encore!"],
+        OOPS = ["Spilled! 🍸", "Last call missed", "Mop on aisle five", "Butterfingers!", "The floor says thanks"];
+  let streak = 0, best = 0, lastHit = -9, grab = null;
+  const speed = () => Math.hypot(fl.vx, fl.vy), base = () => Math.min(innerWidth, innerHeight) * .18;
+  function setSpeed(v) { const s = speed() || 1; fl.vx *= v / s; fl.vy *= v / s; }
+  function pop(text, x, y, bad) {
+    popEl.textContent = text; popEl.classList.toggle("miss", !!bad);
+    popEl.style.left = Math.min(innerWidth - 80, Math.max(80, x)) + "px"; popEl.style.top = Math.max(40, y) + "px";
+    popEl.classList.remove("go"); void popEl.offsetWidth; popEl.classList.add("go");
+  }
+  function catchIt() {
+    if (clock - lastHit < .25) return;
+    const b = badge.getBoundingClientRect(), s = fl.s;
+    if (fl.x + s < b.left || fl.x > b.right || fl.y + s < b.top || fl.y > b.bottom) return;
+    const ox = Math.min(fl.x + s - b.left, b.right - fl.x), oy = Math.min(fl.y + s - b.top, b.bottom - fl.y);
+    if (oy < ox) { if (fl.y + s / 2 < (b.top + b.bottom) / 2) { fl.y = b.top - s; fl.vy = -Math.abs(fl.vy); } else { fl.y = b.bottom; fl.vy = Math.abs(fl.vy); } }
+    else { if (fl.x + s / 2 < (b.left + b.right) / 2) { fl.x = b.left - s; fl.vx = -Math.abs(fl.vx); } else { fl.x = b.right; fl.vx = Math.abs(fl.vx); } }
+    lastHit = clock; streak++; best = Math.max(best, streak); pulse = 1;
+    setSpeed(Math.min(base() * 3.5, speed() * 1.1));   // every catch a little faster
+    pop(JOKES[Math.floor(Math.random() * JOKES.length)] + "  ×" + streak, (b.left + b.right) / 2, b.top - 8);
+  }
+  function miss() {
+    if (!streak) return;   // nobody playing: no scolding
+    pop(OOPS[Math.floor(Math.random() * OOPS.length)] + (best > 1 ? "  · best " + best : ""), fl.x + fl.s / 2, fl.y, true);
+    streak = 0; setSpeed(base());
+  }
+  // drag the floating picture; let go and it flies the way you threw it
+  floatBox.addEventListener("pointerdown", e => {
+    if (!showing) return;
+    e.stopPropagation(); lastTouch = clock;
+    grab = { dx: e.clientX - fl.x, dy: e.clientY - fl.y, px: e.clientX, py: e.clientY, t: performance.now(), vx: 0, vy: 0 };
+    floatBox.setPointerCapture(e.pointerId);
+  });
+  floatBox.addEventListener("pointermove", e => {
+    if (!grab) return;
+    const now = performance.now(), dt = Math.max(1, now - grab.t) / 1000;
+    grab.vx = lerp(grab.vx, (e.clientX - grab.px) / dt, .5); grab.vy = lerp(grab.vy, (e.clientY - grab.py) / dt, .5);
+    grab.px = e.clientX; grab.py = e.clientY; grab.t = now;
+    fl.x = Math.min(innerWidth - fl.s, Math.max(0, e.clientX - grab.dx)); fl.y = Math.min(innerHeight - fl.s, Math.max(0, e.clientY - grab.dy));
+  });
+  const letGo = () => {
+    if (!grab) return;
+    const v = Math.hypot(grab.vx, grab.vy);
+    if (v > 60) { fl.vx = grab.vx; fl.vy = grab.vy; setSpeed(Math.min(base() * 3.5, Math.max(base(), v))); }
+    grab = null; lastTouch = clock;
+  };
+  floatBox.addEventListener("pointerup", letGo); floatBox.addEventListener("pointercancel", letGo);
+
+  async function enterShow(byHand) {
+    if (showing) return;
+    showing = true; document.body.classList.add("show");
+    const m = Math.min(innerWidth, innerHeight), a = Math.random() * 6.283, v = m * .18;
+    fl.s = Math.round(m * .3); fl.x = (innerWidth - fl.s) / 2; fl.y = (innerHeight - fl.s) / 2; fl.vx = Math.cos(a) * v; fl.vy = Math.sin(a) * v;
+    if (byHand && document.documentElement.requestFullscreen && !document.fullscreenElement) document.documentElement.requestFullscreen({ navigationUI: "hide" }).then(() => { wentFs = true; }).catch(() => {});
+    try { if ("wakeLock" in navigator && !showWake) showWake = await navigator.wakeLock.request("screen"); } catch {}
+  }
+  function exitShow() {
+    if (!showing) return;
+    showing = false; document.body.classList.remove("show"); lastTouch = clock; quietUntil = performance.now() + 450;
+    if (wentFs && document.fullscreenElement) document.exitFullscreen().catch(() => {}); wentFs = false;
+    try { if (showWake) showWake.release(); } catch {} showWake = null;
+  }
+  $(".full").addEventListener("click", () => enterShow(true));
+  document.addEventListener("pointerdown", e => {
+    lastTouch = clock;
+    if (showing && !e.target.closest(".badge, .float")) { exitShow(); e.stopPropagation(); }
+  }, true);
+  document.addEventListener("click", e => { if (performance.now() < quietUntil) { e.stopPropagation(); e.preventDefault(); } }, true);   // the tap that ends the show presses nothing
+  document.addEventListener("keydown", () => { lastTouch = clock; if (showing) exitShow(); }, true);
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && showing && wentFs) { wentFs = false; exitShow(); } });
+
+  // ── Video: record the song with its lights, 16:9 or 9:16 ───────────
+  const vc = document.createElement("canvas"), vx = vc.getContext("2d");
+  let rec = null, recBlob = null, recName = "", wake = null;
+  const fmtT = s => !isFinite(s) || s < 0 ? "0:00" : Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+  function fitText(ctx, text, max, size, weight) {
+    let s = size; ctx.font = weight + " " + s + "px Montserrat, 'Helvetica Neue', Arial, sans-serif";
+    while (ctx.measureText(text).width > max && s > size * .45) { s -= 2; ctx.font = weight + " " + s + "px Montserrat, 'Helvetica Neue', Arial, sans-serif"; }
+    return s;
+  }
+  function paintVideo() {
+    const w = vc.width, h = vc.height, tall = h > w, k = Math.min(w, h) / 360;
+    paintField(fc, 96);
+    vx.save(); vx.imageSmoothingEnabled = true; vx.imageSmoothingQuality = "high";
+    const S = Math.max(w, h) * 1.15; vx.drawImage(field, (w - S) / 2, (h - S) / 2, S, S); vx.restore();
+    const g = vx.createRadialGradient(w / 2, h * .45, Math.min(w, h) * .3, w / 2, h * .45, Math.max(w, h) * .75);
+    g.addColorStop(0, "rgba(11,6,20,0)"); g.addColorStop(1, "rgba(11,6,20,.5)"); vx.fillStyle = g; vx.fillRect(0, 0, w, h);
+    paintRays(vx, w, h, w / 2, h / 2);
+    paintWave(vx, -10, h / 2, w + 20, (tall ? h * .1 : h * .2), k * 1.6);
+    // top corner: the song's cover, then its title and artist / album
+    const s = songs[cur], m = 18 * k, A = 46 * k;
+    vx.save(); vx.shadowColor = "rgba(0,0,0,.6)"; vx.shadowBlur = 10 * k;
+    vx.beginPath(); if (vx.roundRect) vx.roundRect(m, m, A, A, 6 * k); else vx.rect(m, m, A, A); vx.clip();
+    const ag = vx.createLinearGradient(m, m, m + A, m + A); ag.addColorStop(0, "#c1121f"); ag.addColorStop(.5, "#c98a00"); ag.addColorStop(1, "#0a4fd6");
+    vx.fillStyle = ag; vx.fillRect(m, m, A, A);
+    const pic = s && s.art && s.artPic ? s.artPic : iconPic;
+    if (pic && pic.complete && pic.naturalWidth) {
+      const iw = pic.naturalWidth, ih = pic.naturalHeight, f = Math.min(A / iw, A / ih), dw = iw * f, dh = ih * f;   // the whole picture, never cropped
+      vx.fillStyle = "#0b0614"; vx.fillRect(m, m, A, A); vx.drawImage(pic, m + (A - dw) / 2, m + (A - dh) / 2, dw, dh);
+    } else {
+      vx.fillStyle = "#fff"; vx.font = "700 " + (24 * k) + "px Arial, sans-serif"; vx.textAlign = "center"; vx.textBaseline = "middle"; vx.fillText("♪", m + A / 2, m + A / 2 + k);
+    }
+    vx.restore();
+    const tx0 = m + A + 12 * k, tmax = w - tx0 - m, title = (s ? s.title : "Möbius Bar").toUpperCase();
+    vx.textAlign = "left"; vx.textBaseline = "middle"; vx.fillStyle = "#fff"; vx.shadowColor = "rgba(0,0,0,.8)"; vx.shadowBlur = 12 * k;
+    fitText(vx, title, tmax, 17 * k, 800); vx.fillText(title, tx0, m + A * .32);
+    const line2 = (s ? [s.artist, s.album].filter(Boolean).join(" · ") : "") || "Möbius Bar";
+    vx.font = "600 " + (9.5 * k) + "px Montserrat, 'Helvetica Neue', Arial, sans-serif"; vx.fillStyle = "rgba(255,255,255,.85)";
+    if ("letterSpacing" in vx) vx.letterSpacing = (1.5 * k) + "px";
+    fitText(vx, line2.toUpperCase(), tmax, 9.5 * k, 600); vx.fillText(line2.toUpperCase(), tx0, m + A * .74);
+    if ("letterSpacing" in vx) vx.letterSpacing = "0px";
+    vx.textAlign = "center";
+    // progress line and the maker's mark
+    const d = player.duration, p = d > 0 && isFinite(d) ? player.currentTime / d : 0;
+    vx.shadowBlur = 0; vx.fillStyle = "rgba(255,255,255,.22)"; vx.fillRect(w * .08, h - 30 * k, w * .84, 2 * k);
+    vx.fillStyle = rgba(lift(color(cph * 2)), 1); vx.fillRect(w * .08, h - 30 * k, w * .84 * p, 2 * k);
+    vx.font = "800 " + (8 * k) + "px Montserrat, 'Helvetica Neue', Arial, sans-serif"; vx.fillStyle = "rgba(255,255,255,.8)";
+    if ("letterSpacing" in vx) vx.letterSpacing = (2.5 * k) + "px";
+    vx.fillText("MADE BY OVI", w / 2, h - 16 * k);
+    if ("letterSpacing" in vx) vx.letterSpacing = "0px";
+    $(".rect").textContent = fmtT(player.currentTime) + " / " + fmtT(d);
+  }
+  const TYPES = ["video/mp4;codecs=avc1.640028,mp4a.40.2", "video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1.640028,opus", "video/mp4;codecs=avc1,opus", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
+  const pickType = () => (window.MediaRecorder && MediaRecorder.isTypeSupported ? TYPES.find(t => MediaRecorder.isTypeSupported(t)) : "") || "";
+  function showBox(which) {
+    $(".pick").hidden = which !== "pick"; $(".rec:not(.done-box)").hidden = which !== "rec"; $(".done-box").hidden = which !== "done";
+    $(".recdot").hidden = which !== "rec";
+  }
+  async function startRec(shape) {
+    if (rec) return;
+    if (cur < 0 || !songs[cur]) { if (songs.length) play(0); else { go(1); picker.click(); return; } }
+    if (!window.MediaRecorder || !vc.captureStream) { $(".vnote").textContent = "This browser can't record video. Try Chrome on Android or Safari on iPhone."; return; }
+    graph();
+    if (!recDest) { $(".vnote").textContent = "This browser can't record the sound. Try Chrome on Android or Safari on iPhone."; return; }
+    vc.width = shape === "v" ? 1080 : 1920; vc.height = shape === "v" ? 1920 : 1080;
+    paintVideo();
+    const stream = new MediaStream([...vc.captureStream(30).getVideoTracks(), ...recDest.stream.getAudioTracks()]);
+    const type = pickType(), chunks = [];
+    let mr;
+    try { mr = new MediaRecorder(stream, Object.assign({ videoBitsPerSecond: 8e6, audioBitsPerSecond: 192e3 }, type ? { mimeType: type } : {})); }
+    catch { mr = new MediaRecorder(stream); }
+    mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    mr.onstop = () => {
+      const mime = (mr.mimeType || type || "video/webm").split(";")[0];
+      recBlob = new Blob(chunks, { type: mime });
+      recName = (songs[cur] ? songs[cur].title : "Mobius Bar") + " - Möbius Bar " + (shape === "v" ? "vertical" : "horizontal") + (mime.includes("mp4") ? ".mp4" : ".webm");
+      stream.getVideoTracks().forEach(t => t.stop());
+      try { if (wake) wake.release(); } catch {} wake = null;
+      rec = null; showBox("done");
+      $(".vnote").textContent = "Ready: " + (recBlob.size / 1048576).toFixed(1) + " MB " + (mime.includes("mp4") ? "MP4" : "WebM") + ". Tap Save video, then upload it to YouTube.";
+    };
+    try { if ("wakeLock" in navigator) wake = await navigator.wakeLock.request("screen"); } catch {}
+    player.currentTime = 0;
+    await player.play().catch(() => {});
+    rec = mr; mr.start(1000);
+    showBox("rec");
+    $(".vnote").textContent = "Recording the whole song. Keep the screen on; you can stop early and keep what's recorded.";
+  }
+  function stopRec() { if (rec && rec.state !== "inactive") rec.stop(); }
+  document.querySelectorAll(".shape").forEach(b => b.addEventListener("click", () => startRec(b.dataset.shape)));
+  $(".stop").addEventListener("click", () => { player.pause(); stopRec(); });
+  $(".save").addEventListener("click", async () => {
+    if (!recBlob) return;
+    const file = new File([recBlob], recName, { type: recBlob.type });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: recName }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(recBlob); a.download = recName;
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  });
+  $(".again").addEventListener("click", () => { recBlob = null; showBox("pick");
+    $(".vnote").textContent = "The song plays from the start and the video records the whole song, lights and wave included. Keep the screen on until it finishes."; });
+
+  // ── MADE BY OVI badge: drag it anywhere (a short tap opens About); every start it comes home under the player ─
+  const badge = $(".badge"); let drag = null;
+  const place = (x, y) => { const r = badge.getBoundingClientRect();
+    Object.assign(badge.style, { left: Math.min(Math.max(4, x), innerWidth - r.width - 4) + "px", top: Math.min(Math.max(4, y), innerHeight - r.height - 4) + "px", right: "auto", bottom: "auto" }); };
+  let badgeMoved = false;   // on start (and on resize until it's dragged) it sits centred, 6px under the player
+  const homeBadge = () => { if (badgeMoved) return; const s = stage.getBoundingClientRect(), r = badge.getBoundingClientRect(); place((innerWidth - r.width) / 2, s.bottom + 6); };
+  homeBadge(); addEventListener("load", homeBadge); addEventListener("resize", homeBadge); if (document.fonts) document.fonts.ready.then(homeBadge);
+  badge.addEventListener("pointerdown", e => { const r = badge.getBoundingClientRect(); drag = { dx: e.clientX - r.left, dy: e.clientY - r.top }; badge.setPointerCapture(e.pointerId); });
+  badge.addEventListener("pointermove", e => { if (drag) { place(e.clientX - drag.dx, e.clientY - drag.dy); badgeMoved = true; } });
+  const end = () => { drag = null; };
+  badge.addEventListener("pointerup", end); badge.addEventListener("pointercancel", end);
+  // in show mode the badge is the game paddle: grabbing it never opens the About page
+  document.addEventListener("pointerup", e => { if (showing && e.target.closest(".badge")) { e.stopPropagation(); end(); } }, true);
+
+  renderToggles();
+  rotate();
+  loadSaved();
+  loadPics();
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  </script>
+</body>
+</html>
