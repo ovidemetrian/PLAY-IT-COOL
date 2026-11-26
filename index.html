@@ -170,8 +170,16 @@
     @keyframes spark { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(0); }
       15% { opacity: 1; }
       100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1) rotate(var(--r)); } }
-    .nav button { height: 7.5cqw; padding: 0 4.5cqw; border-radius: 5cqw; font-size: 3.2cqw; background: transparent; border: 2px solid transparent; }
-    .nav button[aria-current="true"] { background: #ffffff2e; border-color: #fff; }
+    /* Play · Songs · Video: real push buttons too (cherry red, dark yellow, dark blue); the page you're on stays pressed down and lit */
+    .nav button { --b: #a3122e; --e: #5c0716; position: relative; top: -.4cqw; min-width: 22cqw; height: 7.6cqw; padding: 0 3.5cqw; border-radius: 2.2cqw;
+      font-size: 3.1cqw; font-weight: 800; color: #fff; text-shadow: 0 .2cqw .3cqw #0009; border: .35cqw solid #ffffff55;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--b) 72%, #fff) 0%, var(--b) 45%, color-mix(in srgb, var(--b) 80%, #000) 100%);
+      box-shadow: 0 1cqw 0 var(--e), 0 1.5cqw 1.8cqw #000a, inset 0 .4cqw .2cqw #ffffff55;
+      transition: top .07s, box-shadow .07s, filter .2s; user-select: none; -webkit-user-select: none; }
+    .nav button[data-p="1"] { --b: #a77400; --e: #573c00; }
+    .nav button[data-p="2"] { --b: #123a9e; --e: #071c52; }
+    .nav button:active, .nav button[aria-current="true"] { top: .4cqw; box-shadow: 0 .3cqw 0 var(--e), 0 .5cqw .8cqw #000a, inset 0 .5cqw 1cqw #0006; }
+    .nav button[aria-current="true"] { border-color: #fff; filter: brightness(1.2) saturate(1.15); box-shadow: 0 .3cqw 0 var(--e), 0 0 3.5cqw -.4cqw var(--b), inset 0 .5cqw 1cqw #0005; }
 
     /* MADE BY OVI badge: draggable, glowing; tap opens the About page */
     .badge { position: fixed; right: 12px; bottom: 12px; z-index: 20; padding: 9px 24px; font: 800 11px/1 "Montserrat", Arial, sans-serif;
