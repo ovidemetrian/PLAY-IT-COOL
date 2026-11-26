@@ -2,12 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+<meta property="og:title" content="Play It Cool · Ovi Demetrian">
+<meta property="og:description" content="The Möbius Bar Mini Player: your own songs, a glowing wave and lights, a bounce game and a one-tap video for YouTube.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ovidemetrian.github.io/PLAY-IT-COOL/">
+<meta property="og:image" content="https://ovidemetrian.github.io/CARD/og-play-it-cool.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="627">
+<meta name="twitter:card" content="summary_large_image">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0614">
   <meta name="description" content="The Möbius Bar mini player: your own songs from your phone, a glowing wave and lights, and a one-tap video for YouTube.">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="https://ovidemetrian.github.io/MOBIUS-BAR-PLAY-THE-LAMP/icon-192.png" type="image/png">
-  <link rel="apple-touch-icon" href="https://ovidemetrian.github.io/MOBIUS-BAR-PLAY-THE-LAMP/icon-180.png">
+  <link rel="icon" href="https://ovidemetrian.github.io/CARD/jam-icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="https://ovidemetrian.github.io/CARD/jam-icon-180.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <title>Möbius Bar Mini Player</title>
@@ -465,7 +473,7 @@
       const a = artOf(s); if (a) showIcon(a); else if (shown !== iconSrc || !iconSrc) rotate();
       $(".vsong").textContent = s.title;
       if ("mediaSession" in navigator && window.MediaMetadata) try { navigator.mediaSession.metadata = new MediaMetadata({ title: s.title, artist: s.artist || "Möbius Bar", album: s.album || "Mini Player",
-        artwork: a ? [{ src: a, sizes: "512x512", type: s.art.type }] : [{ src: "https://ovidemetrian.github.io/MOBIUS-BAR-PLAY-THE-LAMP/icon-512.png", sizes: "512x512", type: "image/png" }] }); } catch {}
+        artwork: a ? [{ src: a, sizes: "512x512", type: s.art.type }] : [{ src: "https://ovidemetrian.github.io/CARD/jam-icon-512.png", sizes: "512x512", type: "image/png" }] }); } catch {}
     } else {
       ticker(songs.length ? "Tap play   ·   " + songs.length + (songs.length === 1 ? " song" : " songs") + " ready   ·   Möbius Bar mini player" : "Add songs from your phone   ·   tap ＋ below   ·   Möbius Bar mini player");
       if (shown !== iconSrc || !iconSrc) rotate();
