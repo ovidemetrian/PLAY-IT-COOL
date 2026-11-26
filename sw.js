@@ -1,6 +1,6 @@
 // Möbius Bar Mini Player: offline shell. Songs and the song list always come from the network.
 // The page and the app settings (manifest: name, icon) always come fresh from GitHub; the saved copy is only for offline.
-const CACHE = "mobius-mini-solo-v11";
+const CACHE = "mobius-mini-solo-v12";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./about.js"];
 self.addEventListener("install", e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener("activate", e => e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== CACHE).map(x => caches.delete(x)))).then(() => self.clients.claim())));

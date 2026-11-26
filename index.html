@@ -14,8 +14,8 @@
   <meta name="theme-color" content="#0b0614">
   <meta name="description" content="The Möbius Bar mini player: your own songs from your phone, a glowing wave and lights, and a one-tap video for YouTube.">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="https://ovidemetrian.github.io/CARD/jam-icon-192.png" type="image/png">
-  <link rel="apple-touch-icon" href="https://ovidemetrian.github.io/CARD/jam-icon-180.png">
+  <link rel="icon" href="https://ovidemetrian.github.io/CARD/bar-icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="https://ovidemetrian.github.io/CARD/bar-icon-180.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <title>Möbius Bar Mini Player</title>
@@ -390,9 +390,16 @@
     pic.onerror = () => { if (shown === src && !prev) { thumbImg.hidden = true; thumbPh.style.display = ""; floatBox.classList.remove("has"); } };
     pic.src = src;
   }
+  // the moving artwork: the song's own cover, otherwise the Möbius Bar neon sign (Ovi's other pictures only if the sign can't load)
+  const SIGN = "/CARD/bar-sign.jpg";
+  let signOk = null; const signPic = new Image();
+  signPic.onload = () => { signOk = true; if (!(songs[cur] && songs[cur].art)) showIcon(SIGN); };
+  signPic.onerror = () => { signOk = false; rotate(); };
+  signPic.src = SIGN;
   function rotate() {
     const s = songs[cur];
     if (s && s.art) { showIcon(artOf(s)); return; }
+    if (signOk !== false) { iconSrc = SIGN; showIcon(SIGN); return; }
     let n; do { n = pics[Math.floor(Math.random() * pics.length)]; } while (pics.length > 1 && n === iconSrc);
     iconSrc = n; showIcon(n);
   }
@@ -476,7 +483,7 @@
       const a = artOf(s); if (a) showIcon(a); else if (shown !== iconSrc || !iconSrc) rotate();
       $(".vsong").textContent = s.title;
       if ("mediaSession" in navigator && window.MediaMetadata) try { navigator.mediaSession.metadata = new MediaMetadata({ title: s.title, artist: s.artist || "Möbius Bar", album: s.album || "Mini Player",
-        artwork: a ? [{ src: a, sizes: "512x512", type: s.art.type }] : [{ src: "https://ovidemetrian.github.io/CARD/jam-icon-512.png", sizes: "512x512", type: "image/png" }] }); } catch {}
+        artwork: a ? [{ src: a, sizes: "512x512", type: s.art.type }] : [{ src: "https://ovidemetrian.github.io/CARD/bar-icon-512.png", sizes: "512x512", type: "image/png" }] }); } catch {}
     } else {
       ticker(songs.length ? "Tap play   ·   " + songs.length + (songs.length === 1 ? " song" : " songs") + " ready   ·   Möbius Bar mini player" : "Add songs from your phone   ·   tap ＋ below   ·   Möbius Bar mini player");
       if (shown !== iconSrc || !iconSrc) rotate();
@@ -583,6 +590,12 @@
     { pal: [[200, 230, 255], [90, 140, 255], [160, 120, 255], [40, 60, 160]], rays: 1, beams: 0, stars: 1, speed: .2 },       // ice
     { pal: [[30, 200, 90], [255, 206, 0], [0, 180, 170], [20, 90, 60]], rays: 0, beams: 1, speed: .55 }                        // jungle neon
   ];
+  // the secret: Ovi's three key colours (dark cherry red, orange to yellow, dark blue), one after another, then woven together
+  const KEY_RED = { pal: [[116, 9, 28], [168, 29, 54], [71, 4, 16], [196, 34, 58]], rays: 1, beams: 0, speed: .3 };
+  const KEY_ORANGE = { pal: [[217, 122, 6], [244, 179, 34], [169, 75, 0], [255, 150, 24]], rays: 1, beams: 0, speed: .35 };
+  const KEY_BLUE = { pal: [[13, 42, 120], [43, 79, 174], [6, 25, 76], [32, 64, 196]], rays: 1, beams: 0, stars: 1, speed: .3 };
+  const KEY_ALL = { pal: [[168, 29, 54], [244, 179, 34], [43, 79, 174], [217, 122, 6], [116, 9, 28], [13, 42, 120]], rays: 1, beams: 1, rings: 1, speed: .5 };
+  let keyRun = [], moodCount = 0;
   const STARS = Array.from({ length: 70 }, () => [Math.random(), Math.random(), Math.random(), Math.random()]);
   const bg = $("#bg"), bx = bg.getContext("2d"), fx = $("#fx"), fxc = fx.getContext("2d");
   const field = document.createElement("canvas"), fc = field.getContext("2d"); field.width = field.height = 96;   // the soft colour field, shared
@@ -676,9 +689,11 @@
 
   function frame(ms) {
     const now = ms / 1000, dt = Math.min(.1, now - last); last = now; clock += dt;
-    if (clock - moodAt > nextIn) {   // a new mood, all by itself
-      moodAt = clock; nextIn = 20 + Math.random() * 25;
-      let m; do { m = MOODS[Math.floor(Math.random() * MOODS.length)]; } while (m === to);
+    if (clock - moodAt > nextIn) {   // a new mood, all by itself; every third change the secret: the three key colours in turn, then all three together
+      moodAt = clock; let m;
+      if (keyRun.length) { m = keyRun.shift(); nextIn = keyRun.length ? 9 : 28; }
+      else if (++moodCount % 3 === 0) { m = KEY_RED; keyRun = [KEY_ORANGE, KEY_BLUE, KEY_ALL]; nextIn = 9; }
+      else { nextIn = 20 + Math.random() * 25; do { m = MOODS[Math.floor(Math.random() * MOODS.length)]; } while (m === to); }
       from = to; to = m; blendAt = clock;
     }
     mt = sm(Math.min(1, (clock - blendAt) / 4));
@@ -821,7 +836,7 @@
 
   // ── Video: record the song with its lights, 16:9 or 9:16 ───────────
   const vc = document.createElement("canvas"), vx = vc.getContext("2d");
-  const VIDEO_PIC = new Image(); VIDEO_PIC.src = "mobius-bar-07.jpg";   // the video never changes pictures (only the little preview on screen does)
+  const VIDEO_PIC = new Image(); VIDEO_PIC.onerror = () => { VIDEO_PIC.onerror = null; VIDEO_PIC.src = "mobius-bar-07.jpg"; }; VIDEO_PIC.src = "/CARD/bar-sign.jpg";   // the video never changes pictures (only the little preview on screen does)
   let rec = null, recBlob = null, recName = "", wake = null;
   const fmtT = s => !isFinite(s) || s < 0 ? "0:00" : Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
   function fitText(ctx, text, max, size, weight) {
