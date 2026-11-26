@@ -98,9 +98,16 @@
 
     /* page 2: your songs */
     .head { width: 100%; display: flex; gap: 2cqw; }
-    .tog { flex: 1; height: 10cqw; border-radius: 2.4cqw; font-size: 3.1cqw; background: #0b0614b0; border: 2px solid #ffffff70; }
-    .tog.add { background: linear-gradient(90deg, var(--red), #c98a00); border-color: #fff; }
-    .tog[aria-pressed="true"] { background: linear-gradient(90deg, var(--blu), #6a1fb0); border-color: #fff; box-shadow: 0 0 4cqw -1cqw var(--yel); }
+    /* real push buttons: cherry red, dark yellow, dark blue; they sink when pressed, and shuffle/repeat stay down and lit while on */
+    .tog { --b: #a3122e; --e: #5c0716; flex: 1; height: 10cqw; border-radius: 2.4cqw; font-size: 3.2cqw; font-weight: 800; color: #fff; text-shadow: 0 .2cqw .3cqw #0009;
+      position: relative; top: 0; border: .35cqw solid #ffffff55;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--b) 72%, #fff) 0%, var(--b) 45%, color-mix(in srgb, var(--b) 80%, #000) 100%);
+      box-shadow: 0 1.1cqw 0 var(--e), 0 1.6cqw 2cqw #000a, inset 0 .4cqw .2cqw #ffffff55;
+      transition: top .07s, box-shadow .07s, filter .2s; user-select: none; -webkit-user-select: none; }
+    .tog.shuffle { --b: #a77400; --e: #573c00; }
+    .tog.repeat { --b: #123a9e; --e: #071c52; }
+    .tog:active, .tog[aria-pressed="true"] { top: .8cqw; box-shadow: 0 .3cqw 0 var(--e), 0 .5cqw .8cqw #000a, inset 0 .5cqw 1cqw #0006; }
+    .tog[aria-pressed="true"] { border-color: #fff; filter: brightness(1.2) saturate(1.15); box-shadow: 0 .3cqw 0 var(--e), 0 0 3.5cqw -.4cqw var(--b), inset 0 .5cqw 1cqw #0005; }
     .list { width: 100%; flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 1.4cqw; padding: .5cqw; }
     .song { flex: 0 0 auto; display: flex; align-items: center; gap: 2.5cqw; width: 100%; min-height: 10cqw; padding: 1.5cqw 1.5cqw 1.5cqw 3cqw;
       border-radius: 2.2cqw; border: 1px solid #ffffff40; background: #0b0614a8; font-size: 3.3cqw; text-transform: none; letter-spacing: .02em; }
@@ -642,12 +649,13 @@
       ctx.beginPath();
       for (let i = 0; i <= N; i++) {
         const v = Math.max(-1.15, Math.min(1.15, (wave[Math.floor(i / N * (wave.length - 1))] - 128) / 128 * waveGain)) * dir;
-        const yy = cy + v * amp * (1 + pulse * .3);
+        const u = i / N, env = sm(Math.min(1, Math.min(u, 1 - u) / .14));   // the wave leaves the left edge from the centre line and lands on it at the right edge
+        const yy = cy + v * env * amp * (1 + pulse * .3);
         i ? ctx.lineTo(x + w * i / N, yy) : ctx.moveTo(x, yy);
       }
     };
     const grad = (base, a) => { const g = ctx.createLinearGradient(x, 0, x + w, 0); for (let j = 0; j <= 4; j++) g.addColorStop(j / 4, rgba(lift(color(base + j * .8 + cph)), a)); return g; };
-    ctx.save(); ctx.lineJoin = "round"; ctx.lineCap = "round";
+    ctx.save(); ctx.lineJoin = "round"; ctx.lineCap = "butt";
     ctx.shadowColor = "rgba(0,0,0,.75)"; ctx.shadowBlur = 8 * k; ctx.shadowOffsetY = 2 * k;
     trace(1); ctx.lineWidth = 11 * k; ctx.strokeStyle = "rgba(8,4,16,.55)"; ctx.stroke();
     ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
@@ -687,12 +695,12 @@
     paintRays(fxc, W, H, W / 2, showing ? H * .5 : waveY * dpr);
     const d = player.duration, has = cur >= 0 && d > 0 && isFinite(d), t = has ? player.currentTime / d : 0;
     if (showing) {
-      paintWave(fxc, -4 * dpr, H * .55, W + 8 * dpr, Math.min(W, H) * .24, dpr * 1.6);
+      paintWave(fxc, 0, H * .55, W, Math.min(W, H) * .24, dpr * 1.6);
       fxc.fillStyle = "rgba(255,255,255,.22)"; fxc.fillRect(0, H - 3 * dpr, W, 3 * dpr);   // a thin time line along the bottom
       fxc.fillStyle = rgba(lift(color(cph * 2)), 1); fxc.fillRect(0, H - 3 * dpr, W * t, 3 * dpr);
       floatShow(dt);
       if (beatHit && clock - lastSwap > 2.2 && !(songs[cur] && songs[cur].art)) { lastSwap = clock; rotate(); }   // the picture swaps on the beat
-    } else if (page === 0) paintWave(fxc, -4 * dpr, waveY * dpr, W + 8 * dpr, Math.min(H * .15, waveY * dpr * .8), dpr);
+    } else if (page === 0) paintWave(fxc, 0, waveY * dpr, W, Math.min(H * .15, waveY * dpr * .8), dpr);
     beatHit = false;
     const glow = color(cph * 2);
     big.style.setProperty("--pl", pulse.toFixed(3));
@@ -817,7 +825,7 @@
     const g = vx.createRadialGradient(w / 2, h * .45, Math.min(w, h) * .3, w / 2, h * .45, Math.max(w, h) * .75);
     g.addColorStop(0, "rgba(11,6,20,0)"); g.addColorStop(1, "rgba(11,6,20,.5)"); vx.fillStyle = g; vx.fillRect(0, 0, w, h);
     paintRays(vx, w, h, w / 2, h / 2);
-    paintWave(vx, -10, h / 2, w + 20, (tall ? h * .1 : h * .2), k * 1.6);
+    paintWave(vx, 0, h / 2, w, (tall ? h * .1 : h * .2), k * 1.6);
     // top corner: the song's cover, then its title and artist / album
     const s = songs[cur], m = 18 * k, A = 46 * k;
     vx.save(); vx.shadowColor = "rgba(0,0,0,.6)"; vx.shadowBlur = 10 * k;
@@ -915,6 +923,9 @@
   badge.addEventListener("pointerup", end); badge.addEventListener("pointercancel", end);
   // in show mode the badge is the game paddle: grabbing it never opens the About page
   document.addEventListener("pointerup", e => { if (showing && e.target.closest(".badge")) { e.stopPropagation(); end(); } }, true);
+
+  // a short buzz under the finger on every button, like a real switch
+  document.addEventListener("pointerdown", e => { if (e.target.closest("button") && navigator.vibrate) try { navigator.vibrate(12); } catch {} }, true);
 
   renderToggles();
   rotate();
