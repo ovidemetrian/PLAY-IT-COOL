@@ -810,6 +810,7 @@
 
   // ── Video: record the song with its lights, 16:9 or 9:16 ───────────
   const vc = document.createElement("canvas"), vx = vc.getContext("2d");
+  const VIDEO_PIC = new Image(); VIDEO_PIC.src = "mobius-bar-07.jpg";   // the video never changes pictures (only the little preview on screen does)
   let rec = null, recBlob = null, recName = "", wake = null;
   const fmtT = s => !isFinite(s) || s < 0 ? "0:00" : Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
   function fitText(ctx, text, max, size, weight) {
@@ -832,7 +833,7 @@
     vx.beginPath(); if (vx.roundRect) vx.roundRect(m, m, A, A, 6 * k); else vx.rect(m, m, A, A); vx.clip();
     const ag = vx.createLinearGradient(m, m, m + A, m + A); ag.addColorStop(0, "#c1121f"); ag.addColorStop(.5, "#c98a00"); ag.addColorStop(1, "#0a4fd6");
     vx.fillStyle = ag; vx.fillRect(m, m, A, A);
-    const pic = s && s.art && s.artPic ? s.artPic : iconPic;
+    const pic = s && s.art && s.artPic ? s.artPic : (VIDEO_PIC.complete && VIDEO_PIC.naturalWidth ? VIDEO_PIC : iconPic);   // one picture for the whole video: the song's own cover, otherwise the Möbius Bar neon sign
     if (pic && pic.complete && pic.naturalWidth) {
       const iw = pic.naturalWidth, ih = pic.naturalHeight, f = Math.min(A / iw, A / ih), dw = iw * f, dh = ih * f;   // the whole picture, never cropped
       vx.fillStyle = "#0b0614"; vx.fillRect(m, m, A, A); vx.drawImage(pic, m + (A - dw) / 2, m + (A - dh) / 2, dw, dh);
