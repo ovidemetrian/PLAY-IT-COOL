@@ -106,16 +106,7 @@
 
     /* page 2: your songs */
     .head { width: 100%; display: flex; gap: 2cqw; }
-    /* real push buttons: cherry red, dark yellow, dark blue; they sink when pressed, and shuffle/repeat stay down and lit while on */
-    .tog { --b: #a3122e; --e: #5c0716; flex: 1; height: 10cqw; border-radius: 2.4cqw; font-size: 3.2cqw; font-weight: 800; color: #fff; text-shadow: 0 .2cqw .3cqw #0009;
-      position: relative; top: 0; border: .35cqw solid #ffffff55;
-      background: linear-gradient(180deg, color-mix(in srgb, var(--b) 72%, #fff) 0%, var(--b) 45%, color-mix(in srgb, var(--b) 80%, #000) 100%);
-      box-shadow: 0 1.1cqw 0 var(--e), 0 1.6cqw 2cqw #000a, inset 0 .4cqw .2cqw #ffffff55;
-      transition: top .07s, box-shadow .07s, filter .2s; user-select: none; -webkit-user-select: none; }
-    .tog.shuffle { --b: #a77400; --e: #573c00; }
-    .tog.repeat { --b: #123a9e; --e: #071c52; }
-    .tog:active, .tog[aria-pressed="true"] { top: .8cqw; box-shadow: 0 .3cqw 0 var(--e), 0 .5cqw .8cqw #000a, inset 0 .5cqw 1cqw #0006; }
-    .tog[aria-pressed="true"] { border-color: #fff; filter: brightness(1.2) saturate(1.15); box-shadow: 0 .3cqw 0 var(--e), 0 0 3.5cqw -.4cqw var(--b), inset 0 .5cqw 1cqw #0005; }
+    /* the push buttons (Add · Shuffle · Repeat, Play · Songs · Video) share one look, styled together further down */
     .list { width: 100%; flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 1.4cqw; padding: .5cqw; }
     .song { flex: 0 0 auto; display: flex; align-items: center; gap: 2.5cqw; width: 100%; min-height: 10cqw; padding: 1.5cqw 1.5cqw 1.5cqw 3cqw;
       border-radius: 2.2cqw; border: 1px solid #ffffff40; background: #0b0614a8; font-size: 3.3cqw; text-transform: none; letter-spacing: .02em; }
@@ -170,16 +161,20 @@
     @keyframes spark { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(0); }
       15% { opacity: 1; }
       100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1) rotate(var(--r)); } }
-    /* Play · Songs · Video: real push buttons too (cherry red, dark yellow, dark blue); the page you're on stays pressed down and lit */
-    .nav button { --b: #a3122e; --e: #5c0716; position: relative; top: -.4cqw; min-width: 22cqw; height: 7.6cqw; padding: 0 3.5cqw; border-radius: 2.2cqw;
-      font-size: 3.1cqw; font-weight: 800; color: #fff; text-shadow: 0 .2cqw .3cqw #0009; border: .35cqw solid #ffffff55;
-      background: linear-gradient(180deg, color-mix(in srgb, var(--b) 72%, #fff) 0%, var(--b) 45%, color-mix(in srgb, var(--b) 80%, #000) 100%);
-      box-shadow: 0 1cqw 0 var(--e), 0 1.5cqw 1.8cqw #000a, inset 0 .4cqw .2cqw #ffffff55;
-      transition: top .07s, box-shadow .07s, filter .2s; user-select: none; -webkit-user-select: none; }
-    .nav button[data-p="1"] { --b: #a77400; --e: #573c00; }
-    .nav button[data-p="2"] { --b: #123a9e; --e: #071c52; }
-    .nav button:active, .nav button[aria-current="true"] { top: .4cqw; box-shadow: 0 .3cqw 0 var(--e), 0 .5cqw .8cqw #000a, inset 0 .5cqw 1cqw #0006; }
-    .nav button[aria-current="true"] { border-color: #fff; filter: brightness(1.2) saturate(1.15); box-shadow: 0 .3cqw 0 var(--e), 0 0 3.5cqw -.4cqw var(--b), inset 0 .5cqw 1cqw #0005; }
+    /* real push keys: dark cherry red, orange-to-yellow, dark blue, white text. All sit on one line;
+       a key sinks only while the finger is on it, and the one that's on (page, shuffle, repeat) glows instead of moving */
+    .tog, .nav button { --t: #a81d36; --b: #74091c; --d: #470410; --e: #2a0209;
+      position: relative; transform: translateY(0); border: .35cqw solid #ffffff40; color: #fff; font-weight: 800; text-shadow: 0 .2cqw .3cqw #000b;
+      background: linear-gradient(180deg, var(--t) 0%, var(--b) 48%, var(--d) 100%);
+      box-shadow: 0 1cqw 0 var(--e), 0 1.4cqw 1.8cqw #000a, inset 0 .35cqw .15cqw #ffffff40;
+      transition: transform .06s, box-shadow .06s, filter .2s, border-color .2s; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+    .tog.shuffle, .nav button[data-p="1"] { --t: #f4b322; --b: #d97a06; --d: #a94b00; --e: #552400; }
+    .tog.repeat, .nav button[data-p="2"] { --t: #2b4fae; --b: #0d2a78; --d: #06194c; --e: #020b29; }
+    .tog { flex: 1; height: 10cqw; border-radius: 2.4cqw; font-size: 3.2cqw; }
+    .nav button { min-width: 22cqw; height: 7.6cqw; padding: 0 3.5cqw; border-radius: 2.2cqw; font-size: 3.1cqw; }
+    .tog[aria-pressed="true"], .nav button[aria-current="true"] { border-color: #fff; filter: brightness(1.18) saturate(1.1);
+      box-shadow: 0 1cqw 0 var(--e), 0 0 3.2cqw -.2cqw var(--t), inset 0 .35cqw .15cqw #ffffff55, inset 0 0 0 .3cqw #ffffff30; }
+    .tog.down, .nav button.down { transform: translateY(.8cqw); box-shadow: 0 .2cqw 0 var(--e), 0 .4cqw .6cqw #000a, inset 0 .5cqw 1cqw #0007; }
 
     /* MADE BY OVI badge: draggable, glowing; tap opens the About page */
     .badge { position: fixed; right: 12px; bottom: 12px; z-index: 20; padding: 9px 24px; font: 800 11px/1 "Montserrat", Arial, sans-serif;
@@ -941,8 +936,12 @@
   // in show mode the badge is the game paddle: grabbing it never opens the About page
   document.addEventListener("pointerup", e => { if (showing && e.target.closest(".badge")) { e.stopPropagation(); end(); } }, true);
 
-  // a short buzz under the finger on every button, like a real switch
+  // a short buzz under the finger on every button, like a real switch; the keys sink the moment they're touched and come up on release
   document.addEventListener("pointerdown", e => { if (e.target.closest("button") && navigator.vibrate) try { navigator.vibrate(12); } catch {} }, true);
+  document.querySelectorAll(".tog, .nav button").forEach(k => {
+    k.addEventListener("pointerdown", () => k.classList.add("down"));
+    ["pointerup", "pointercancel", "pointerleave"].forEach(ev => k.addEventListener(ev, () => k.classList.remove("down")));
+  });
 
   renderToggles();
   rotate();
